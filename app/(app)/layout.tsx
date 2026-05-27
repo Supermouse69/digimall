@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import  {DM_Sans} from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
+import { TRPCReactProvider } from "@/trpc/client";
 
 
 
@@ -26,7 +27,12 @@ export default function RootLayout({
       lang="en"
       className={cn("h-full", "antialiased",  "font-sans", dm_Sans.className)}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+       <body className="h-full">
+        <TRPCReactProvider>
+          {children}
+        </TRPCReactProvider>
+      </body>
+      
     </html>
   );
 }

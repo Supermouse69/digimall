@@ -1,28 +1,41 @@
-import { Input } from "@base-ui/react";
-import { SearchIcon } from "lucide-react";
+"use client";
+
+import { useState } from "react";
+import { ListFilterIcon, SearchIcon } from "lucide-react";
+
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+
+import { CategoriesSidebar } from "./categories-sidebar";
+//import { CustomCategory } from "../types";
 
 interface Props {
-  disabled?: Boolean;
-}
+  disabled?: boolean;
+  //data: CustomCategory[];
+};
 
-export const SearchInput = ({ disabled }: Props) => {
+export const SearchInput = ({
+  disabled,
+  //data,
+}: Props) => {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
   return (
-    <div className="relative w-full max-w-md">
-      
-      <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-neutral-500 pointer-events-none" />
-      <Input
-        className="w-full 
-                   bg-white dark:bg-neutral-900 
-                   border border-neutral-300 dark:border-neutral-700 
-                   focus:border-blue-500 focus:ring-2 focus:ring-blue-200 
-                   rounded-xl 
-                   py-3 pl-11 pr-4 
-                   text-sm 
-                   placeholder:text-neutral-400
-                   disabled:bg-neutral-100 disabled:cursor-not-allowed"
-        placeholder="Search products"
-        disabled={disabled}
-      />
+    <div className="flex items-center gap-2 w-full">
+      <CategoriesSidebar open={isSidebarOpen} onOpenChange={setIsSidebarOpen} />
+      <div className="relative w-full">
+        <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-neutral-500" />
+        <Input className="pl-8" placeholder="Search products" disabled={disabled} />
+      </div>
+      {/* TODO: Add categories view all button */}
+      <Button
+        variant="elevated"
+        className="size-12 shrink-0 flex lg:hidden"
+        onClick={() => setIsSidebarOpen(true)}
+      >
+        <ListFilterIcon />
+      </Button>
+      {/* TODO: Add library button */}
     </div>
   );
 };
