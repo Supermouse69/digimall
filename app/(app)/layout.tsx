@@ -3,6 +3,7 @@ import  {DM_Sans} from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { TRPCReactProvider } from "@/trpc/client";
+import { Toaster } from "@/components/ui/sonner";
 
 
 
@@ -30,6 +31,7 @@ export default function RootLayout({
        <body className="h-full">
         <TRPCReactProvider>
           {children}
+          <Toaster/>
         </TRPCReactProvider>
       </body>
       

@@ -1,3 +1,5 @@
+//possible solution for the categories bug 6:38:06
+
 "use client";
 
 import { ListFilterIcon } from "lucide-react";

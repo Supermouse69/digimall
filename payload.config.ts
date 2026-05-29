@@ -5,9 +5,10 @@ import { buildConfig } from "payload";
 import { fileURLToPath } from "url";
 import sharp from "sharp";
 
-import { Users } from "./collections/Users";
-import { Media } from "./collections/Media";
-import { Categories } from "./collections/Categories";
+//import { Users } from "collections/Users";
+import { Media } from "./app/collections/Media";
+import { Categories } from "./app/collections/Categories";
+import { Users } from "./app/collections/Users";
 
 const filename = fileURLToPath(import.meta.url);
 const dirname = path.dirname(filename);
