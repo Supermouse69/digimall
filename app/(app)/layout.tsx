@@ -4,6 +4,7 @@ import "./globals.css";
 import { cn } from "@/lib/utils";
 import { TRPCReactProvider } from "@/trpc/client";
 import { Toaster } from "@/components/ui/sonner";
+import {NuqsAdapter} from "nuqs/adapters/next/app";
 
 
 
@@ -29,10 +30,12 @@ export default function RootLayout({
       className={cn("h-full", "antialiased",  "font-sans", dm_Sans.className)}
     >
        <body className="h-full">
+        <NuqsAdapter> 
         <TRPCReactProvider>
           {children}
           <Toaster/>
         </TRPCReactProvider>
+        </NuqsAdapter>
       </body>
       
     </html>
