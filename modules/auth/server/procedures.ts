@@ -3,9 +3,8 @@ import { headers as getHeaders } from "next/headers";
 
 import { baseProcedure, createTRPCRouter } from "@/trpc/init";
 
-
-import { loginSchema, registerSchema } from "../schemas";
 import { generateAuthCookie } from "../utils";
+import { loginSchema, registerSchema } from "../schemas";
 
 export const authRouter = createTRPCRouter({
   session: baseProcedure.query(async ({ ctx }) => {
@@ -15,7 +14,6 @@ export const authRouter = createTRPCRouter({
 
     return session;
   }),
-
   register: baseProcedure
     .input(registerSchema)
     .mutation(async ({ input, ctx }) => {
@@ -38,12 +36,26 @@ export const authRouter = createTRPCRouter({
         });
       }
 
+      const tenant = await ctx.db.create({
+        collection: "tenants",
+        data: {
+          name: input.username,
+          slug: input.username,
+          stripeAccountId: "test"
+        }
+      })
+
       await ctx.db.create({
         collection: "users",
         data: {
           email: input.email,
           username: input.username,
           password: input.password, // This will be hashed
+          tenants: [
+            {
+              tenant: tenant.id,
+            },
+          ],
         },
       });
 
@@ -67,10 +79,6 @@ export const authRouter = createTRPCRouter({
         value: data.token,
       });
     }),
-
-
-
-
     login: baseProcedure
     .input(loginSchema)
     .mutation(async ({ input, ctx }) => {
@@ -93,5 +101,7 @@ export const authRouter = createTRPCRouter({
         prefix: ctx.db.config.cookiePrefix,
         value: data.token,
       });
+
+      return data;
     }),
 });

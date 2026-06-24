@@ -4,6 +4,8 @@ import path from "path";
 import { buildConfig } from "payload";
 import { fileURLToPath } from "url";
 import sharp from "sharp";
+import {multiTenantPlugin} from "@payloadcms/plugin-multi-tenant";
+import {payloadCloudPlugin} from "@payloadcms/payload-cloud"
 
 //import { Users } from "collections/Users";
 
@@ -12,9 +14,10 @@ import { Media } from "./app/collections/Media";
 import { Users } from "./app/collections/Users";
 import { Products } from "./app/collections/Products";
 import { Tags } from "./app/collections/Tags";
+import { Tenants } from "./app/collections/Tenants";
 
-const filename = fileURLToPath(import.meta.url);
-const dirname = path.dirname(filename);
+const filename = fileURLToPath(import.meta.url)
+const dirname = path.dirname(filename)
 
 export default buildConfig({
   admin: {
@@ -23,15 +26,27 @@ export default buildConfig({
       baseDir: path.resolve(dirname),
     },
   },
-  collections: [Users, Media, Categories, Products,Tags],
+  collections: [Users, Media, Categories, Products, Tags, Tenants],
   editor: lexicalEditor(),
-  secret: process.env.PAYLOAD_SECRET || "",
+  secret: process.env.PAYLOAD_SECRET || '',
   typescript: {
-    outputFile: path.resolve(dirname, "payload-types.ts"),
+    outputFile: path.resolve(dirname, 'payload-types.ts'),
   },
   db: mongooseAdapter({
-    url: process.env.DATABASE_URL || "",
+    url: process.env.DATABASE_URL || '',
   }),
   sharp,
-  plugins: [],
-});
+  plugins: [
+    payloadCloudPlugin(),
+    multiTenantPlugin({
+      collections: {
+        products: {},
+      },
+      tenantsArrayField: {
+        includeDefaultField: false,
+      },
+      userHasAccessToAllTenants: (user) => Boolean(user?.roles?.includes("super-admin"))
+    }),
+    // storage-adapter-placeholder
+  ],
+})
