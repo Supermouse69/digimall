@@ -1,7 +1,7 @@
 //tags dropdown fails @10:27:45
 
 
-import { ProductListView } from "@/modules/home/ui/views/product-list-view";
+import { ProductListView } from "@/modules/products/ui/views/product-list-view";
 
 import type { SearchParams } from "nuqs/server";
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";

@@ -5,7 +5,7 @@ import type { SearchParams } from "nuqs/server";
 
 import { loadProductFilters } from "@/modules/products/search-params";
 
-import { ProductListView } from "@/modules/home/ui/views/product-list-view";
+import { ProductListView } from "@/modules/products/ui/views/product-list-view";
 import { DEFAULT_LIMIT } from "@/constants";
 
 interface Props {

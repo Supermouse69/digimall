@@ -1,5 +1,5 @@
 import { DEFAULT_LIMIT } from "@/constants";
-import { ProductListView } from "@/modules/home/ui/views/product-list-view";
+import { ProductListView } from "@/modules/products/ui/views/product-list-view";
 import { loadProductFilters } from "@/modules/products/search-params";
 import { ProductList,ProductListSkeleton } from "@/modules/products/ui/components/product-list";
 import { getQueryClient, trpc } from "@/trpc/server";
