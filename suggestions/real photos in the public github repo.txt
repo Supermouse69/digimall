@@ -1,0 +1,30 @@
+Title: Mock-up photos are committed to the public GitHub repo
+Date: 2026-10-28
+Priority: Medium
+Area: data / infra
+
+What's the problem?
+The GitHub repo Supermouse69/digimall is public. It contains mock-up photos:
+  - public/ian.jpg — used as the fallback image for EVERY product and the product page cover, so it
+    would show on the live site whenever a product has no picture.
+  - media/588644597_...jpg and media/675382817_...jpg — Payload's local upload folder, committed to git.
+Developer confirmed (2026-10-28) these are just examples/mock-ups.
+
+Why it matters (what could go wrong):
+A real-looking face as the default product picture looks odd to buyers. Local `media/` uploads also
+won't work on Vercel (no permanent disk), so that folder shouldn't be in git.
+
+What I suggest:
+  - Phase 1: replace the fallback with a neutral placeholder image (a simple SVG we draw),
+    delete the mock-up files, add `/media` to .gitignore.
+  - Optional: make the GitHub repo private (free, hides the code from copycats).
+  - Phase 3: uploads go to Vercel Blob instead of the local disk.
+
+Effort and cost (free? needs a paid service?):
+Free. Minutes.
+
+Trade-offs / risks:
+None.
+
+What I need from you:
+Nothing extra — this is folded into the Phase 1 plan. Tell me if you want the repo made private.

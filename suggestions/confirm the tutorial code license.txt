@@ -1,0 +1,28 @@
+Title: Confirm the tutorial author's terms before commercial launch
+Date: 2026-10-28
+Priority: Medium
+Area: legal
+
+What's the problem?
+Our code is built by following code-with-antonio/next15-multitenant-ecommerce. That repo has no
+LICENSE file. With no license, by default the author keeps all rights — nobody gets permission to copy
+or reuse the code, even if it's public on GitHub. A lot of our files are close copies of it right now.
+
+Why it matters (what could go wrong):
+Low chance of trouble for a learning project, but DigiMall will be a commercial business. A copyright
+complaint after launch would be a headache.
+
+What I suggest:
+  - Check the repo's README / the YouTube video description / the author's site for usage terms,
+    or message the author and ask (keep the reply).
+  - Either way, our rewrite (Phases 1–8) will replace most of the tutorial code with our own code.
+    I'll learn patterns from it, not copy big chunks.
+
+Effort and cost (free? needs a paid service?):
+Free. One message.
+
+Trade-offs / risks:
+None.
+
+What I need from you:
+Check the author's terms (or ask them) before going live with real stores.

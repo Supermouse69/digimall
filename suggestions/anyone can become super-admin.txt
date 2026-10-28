@@ -1,0 +1,46 @@
+Title: Anyone can become super-admin (no access control on collections)
+Date: 2026-10-28
+Priority: High
+Area: security
+
+What's the problem?
+None of our Payload collections (users, tenants, products, categories, tags) set any `access` rules,
+except media (read: anyone). When `access` is missing, Payload's default is "any logged-in user can
+do everything". And public sign-up is open (/sign-up). So a stranger can:
+  1. Sign up (this also auto-creates a store for them).
+  2. Send PATCH /api/users/<their id> with {"roles": ["super-admin"]}.
+  3. Now they own the whole site: every user, every store, every product.
+The same hole lets any logged-in user edit/delete other people's products, stores, categories, and
+read every user's email. The tenants field on users is also open (read/create/update: () => true),
+so a user can attach themselves to any store.
+Extra: login returns the auth token in the JSON body (so page JavaScript can read it), the auth cookie
+has no Secure/SameSite set, and the minimum password is 5 characters.
+
+Why it matters (what could go wrong):
+Full site takeover by anyone, in a few seconds, with a normal browser. Data Privacy Act breach
+(every user's personal data exposed) once real users sign up.
+
+What I suggest:
+Phase 1 (security baseline), before any real user signs up:
+  - Add deny-by-default `access` to every collection (helper functions like isSuperAdmin, isSeller,
+    isOwnTenant in one file).
+  - Field-level access: only super-admin can set `roles`, `tenants`, store slug/status/verification.
+  - Users: read/update only yourself; create only super-admin (buyer signup goes through our own
+    server code).
+  - Turn off auto-creating a store on signup (stores are admin-created per CLAUDE.md §8).
+  - Stop returning the token from the login procedure; set Secure + SameSite=Lax on cookies;
+    password min 10.
+  - Upgrade Payload to >= 3.90 (separate suggestion) because older versions also have
+    access-control bypass bugs.
+  - Write tests that try these attacks and expect "forbidden".
+
+Effort and cost (free? needs a paid service?):
+Free. About 1 day of work.
+
+Trade-offs / risks:
+The Payload admin may show fewer things to non-admin users (that's the goal). If a rule is too strict,
+something legit gets blocked — we'd fix it by loosening that one rule, not by opening everything.
+
+What I need from you:
+A "yes" to change access control (it's on the "ask first" list). Also: until this is fixed, please don't
+deploy the site anywhere public.

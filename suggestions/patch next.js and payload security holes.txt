@@ -1,0 +1,46 @@
+Title: Patch Next.js and Payload (critical security advisories)
+Date: 2026-10-28
+Priority: High
+Area: security / infra
+
+What's the problem?
+`bun audit` on 2026-10-28 reports 242 known issues (10 critical, 88 high). The important ones:
+  - next 16.2.2 (need >= 16.2.5; latest 16.4.3): 5 critical remote-code-execution bugs, including
+    "Unauthenticated RCE on Windows-hosted servers" (your dev PC is Windows), RCE in the image
+    optimizer (AVIF/SVG), plus a middleware/proxy bypass and DoS bugs.
+  - payload 3.82.1 (need >= 3.90; latest 3.92.1): critical "unauthorized update to collection
+    documents", "field access control bypass on auth collections", "auth token field handling",
+    plus weak password hashing (low PBKDF2 iterations) and API key disclosure.
+  - @payloadcms/plugin-multi-tenant < 3.90: tenant authorization bypass + cross-tenant create.
+  - @payloadcms/db-mongodb < 3.87: field-level write access bypass on MongoDB (that's us).
+  - @payloadcms/next < 3.88: untrusted redirect.
+  - Most of the rest comes from the `shadcn` CLI being in "dependencies" (it pulls in an MCP SDK,
+    express, etc.) and from @payloadcms/payload-cloud (nodemailer). Neither is needed at runtime.
+React 19.2.4 is already past the Dec 2025 "React2Shell" RSC RCE fix (19.2.1), and Next 16 is not
+affected by the March 2025 middleware-bypass (CVE-2025-29927).
+
+Why it matters (what could go wrong):
+RCE = an attacker runs their own code on our server: steals the database password, all user data,
+everything. Until patched, run `next dev` only on 127.0.0.1 (not your Wi-Fi), e.g.
+`bun run dev -- -H 127.0.0.1`.
+
+What I suggest:
+  1. Upgrade next + eslint-config-next to the latest 16.x patch, all payload / @payloadcms/* packages
+     to the same latest 3.x (they must match), react/react-dom to latest 19.x.
+  2. Remove `shadcn` from dependencies (run it with `bunx shadcn@<version>` when needed) and remove
+     @payloadcms/payload-cloud (we host on Vercel, not Payload Cloud).
+  3. Re-run `bun audit`, typecheck, lint, build.
+  4. Turn on GitHub Dependabot alerts + security updates (Settings -> Code security) so we hear about
+     the next one.
+  Note: Payload's new password hashing may need users to log in again or reset — fine, we have no
+  real users yet.
+
+Effort and cost (free? needs a paid service?):
+Free. A few hours, mostly testing.
+
+Trade-offs / risks:
+Minor-version upgrades can change small APIs. We do it on a branch with commits before/after;
+rollback = revert the commit and run `bun install`.
+
+What I need from you:
+A "yes" for the version bumps and the two removals (dependency changes are "ask first").
