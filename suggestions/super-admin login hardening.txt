@@ -1,0 +1,52 @@
+Title: Super-admin login hardening (hidden entry + 2FA)
+Date: 2026-10-29
+Priority: High
+Area: security
+
+What's the problem?
+The super-admin can do everything (all stores, all users, private documents). Right now it logs in like
+everyone else, with just an email + password. If that password leaks (phishing, reuse, a keylogger),
+the whole marketplace is taken over. CLAUDE.md §10.5 asks for a hardened entry before we go live.
+
+Why it matters (what could go wrong):
+One stolen password = every buyer's address/phone, every store, every rider document exposed.
+That's a Data Privacy Act breach we'd have to report to the NPC within 72 hours.
+
+What I suggest (design):
+1. Two-factor login (TOTP) for super-admin only.
+   - You scan a QR code once with an authenticator app (Google Authenticator, Microsoft Authenticator,
+     Aegis, 2FAS — all free). After that, login = email + password + the 6-digit code from the app.
+   - 10 one-time backup codes (shown once, stored hashed) in case you lose your phone.
+   - The 2FA secret is stored encrypted and no API can read it (field-level access: nobody).
+2. Hidden entry page.
+   - The super-admin logs in only at https://digimall.online/<ADMIN_ENTRY_PATH> (a long random path
+     from a new env var). Everyone else gets a normal 404 there.
+   - The normal /login and Payload's own login REJECT super-admin accounts with the same generic
+     "Wrong email or password" message (enforced in a Payload beforeLogin hook = server side, so it
+     also covers the REST API — not just the page).
+   - After the hidden login, the super-admin uses the normal Payload admin panel as usual.
+3. Payload admin panel stays at one URL for sellers + super-admin. (Sellers get its link in their invite.
+   Moving it off /admin is optional — it only hides it from bots; the 2FA is the real protection.)
+4. Every super-admin login (success or failure) is written to an audit log (who, when, IP, result).
+5. Login lockout already exists (5 wrong tries = 10 min lock). Rate limiting by IP comes with
+   Turnstile/Upstash (separate step).
+6. Optional later: IP allowlist (only your home/phone IPs). Skipped for now — mobile data IPs change
+   a lot in PH, so it would lock you out often.
+
+Effort and cost (free? needs a paid service?):
+Free. About 1–2 days. Needs 2 small, well-known open-source packages:
+  - otpauth (MIT) — checks the 6-digit codes
+  - qrcode (MIT) — draws the setup QR code
+And 1 new env var: ADMIN_ENTRY_PATH (already listed in CLAUDE.md §6).
+
+Trade-offs / risks:
+- If you lose your phone AND your backup codes, you're locked out. Last-resort recovery: a script you run
+  yourself on your PC (with the database password) that resets the 2FA. I'll write it.
+- Order matters: the "normal login rejects super-admin" rule is switched on only AFTER your 2FA works,
+  so you can't get locked out mid-build.
+- One extra step each time you log in as admin.
+
+What I need from you:
+1. "Yes" to this design, the 2 packages, and the ADMIN_ENTRY_PATH env var.
+2. An authenticator app installed on your phone.
+3. Your real super-admin email (to replace admin@demo.com — see that suggestion file).
