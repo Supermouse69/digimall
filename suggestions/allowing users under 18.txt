@@ -1,0 +1,48 @@
+Title: Allowing buyers under 18 + an "18+ only" item flag
+Date: 2026-10-29
+Priority: High
+Area: legal / data / flow
+
+What's the problem?
+The developer wants minors (under 18) to be able to use DigiMall, with sellers able to mark some items
+"18+ only" so minors can't see them. That touches several laws, so it needs a decision before we
+build sign-up (Phase 2b). This is not legal advice — please confirm with a lawyer or the NPC if unsure.
+
+Why it matters (what could go wrong):
+1. Data Privacy Act (RA 10173): we collect name, phone, home address, map pin, and a landmark photo.
+   For minors this is riskier, and NPC guidance generally expects consent from a parent/guardian,
+   not the child. Getting this wrong is a privacy violation.
+2. Civil Code: a minor can't fully consent to a contract; a purchase by a minor can be annulled
+   (cancelled) later, which can hurt sellers who already handed over goods.
+3. Safety: riders and sellers would be dealing with (and delivering to) children at home.
+4. Payments: the buyer pays with their own GCash. Check GCash's own age rules for full accounts —
+   a minor may be using a parent's account anyway.
+5. The "18+ item" flag: in the beta, the usual adult-only items (alcohol, tobacco, vapes, adult content)
+   are already PROHIBITED (CLAUDE.md §9). So the flag would cover few or no items. And it can only rely
+   on the age the user types in — it isn't real age verification (no ID check). A minor can simply
+   type a fake birth year.
+
+What I suggest:
+Option A (recommended for beta): Minimum age 18.
+  - Sign-up checkbox: "I am at least 18 years old." Simple, collects no extra data, lowest legal risk.
+  - Keep the prohibited-items list as the protection; no 18+ flag needed yet.
+  - Revisit minors after DigiMall is a registered business and you've gotten advice.
+Option B: Allow minors (e.g. 15–17) with a parent/guardian.
+  - Ask for birthdate (needed to know who is a minor — more personal data).
+  - Minors must tick "My parent/guardian agrees" + enter the guardian's name and mobile number.
+    (A checkbox can't prove the parent really agreed — stronger options cost money.)
+  - Products get an "18+ only" toggle; hidden from minors' accounts and from logged-out visitors,
+    enforced on the server.
+  - The Terms and Privacy Notice (you write them) must explain how minors' data is handled.
+  - More work: ~1–2 extra days, plus ongoing moderation.
+
+Effort and cost (free? needs a paid service?):
+Option A: free, no extra work. Option B: free, ~1–2 extra days; real ID-based age checks would need a
+paid service.
+
+Trade-offs / risks:
+A: fewer users (some teens buy snacks/school items at sari-sari stores). B: more legal and safety
+exposure, more data to protect, and the 18+ flag is easy to bypass.
+
+What I need from you:
+Pick A or B. If B: the minimum age (e.g. 15?) and what kinds of items you'd mark "18+".
