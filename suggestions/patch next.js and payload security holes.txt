@@ -44,3 +44,5 @@ rollback = revert the commit and run `bun install`.
 
 What I need from you:
 A "yes" for the version bumps and the two removals (dependency changes are "ask first").
+
+Status: DONE 2026-10-29 on branch security-baseline (commit 65ca807). bun audit --prod: 58 -> 4 (remaining: happy-dom needs a Payload update; deepmerge has no fix; zod/esbuild leftovers are dev tools only).

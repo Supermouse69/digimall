@@ -44,3 +44,5 @@ something legit gets blocked — we'd fix it by loosening that one rule, not by 
 What I need from you:
 A "yes" to change access control (it's on the "ask first" list). Also: until this is fixed, please don't
 deploy the site anywhere public.
+
+Status: DONE 2026-10-29 on branch security-baseline (commit 52e5674). Check: bun run test:access (46 checks). Still to do in Phase 1/2: real roles (buyer/seller/rider), CSRF/CORS config, Turnstile + rate limits, super-admin 2FA.
