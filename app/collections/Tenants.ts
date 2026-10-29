@@ -34,36 +34,13 @@ export const Tenants: CollectionConfig = {
         update: superAdminOnlyField,
       },
       admin: {
-        description:
-          "This is the subdomain for the store (e.g. [slug].funroad.com)",
+        description: "Used in the store's web address. Only the super-admin can change it.",
       },
     },
     {
       name: "image",
       type: "upload",
       relationTo: "media",
-    },
-    {
-      name: "stripeAccountId",
-      type: "text",
-      required: true,
-      access: {
-        update: superAdminOnlyField,
-      },
-      admin: {
-        readOnly: true,
-      },
-    },
-    {
-      name: "stripeDetailsSubmitted",
-      type: "checkbox",
-      access: {
-        update: superAdminOnlyField,
-      },
-      admin: {
-        readOnly: true,
-        description: "You cannot create products until you submit your Stripe details",
-      },
     },
   ],
 };

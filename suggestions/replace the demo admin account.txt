@@ -1,0 +1,32 @@
+Title: Replace the tutorial's demo super-admin (admin@demo.com)
+Date: 2026-10-29
+Priority: High
+Area: security
+
+What's the problem?
+The tutorial's seed script created a super-admin account: admin@demo.com with the password "demo".
+It is in your database right now, and it's the ONLY super-admin account. The email and password are
+printed in the public tutorial repo and video, so anyone could guess them.
+(I fixed the seed script so new seeds use a random password. Your existing account is unchanged —
+changing it means writing to the database, so I didn't touch it.)
+
+Why it matters (what could go wrong):
+Once the site is online, anyone could log in as super-admin and control everything.
+Today the risk is low because the site isn't deployed yet.
+
+What I suggest:
+Before any deploy (and ideally now):
+  1. Log in to /admin as admin@demo.com.
+  2. Create your real super-admin account with your own email and a long password
+     (password manager recommended), and give it the super-admin role.
+  3. Log in with the new account, then delete admin@demo.com (or at least change its email and password).
+Phase 2 adds the full super-admin hardening (hidden login path, 2FA) from CLAUDE.md §10.5.
+
+Effort and cost (free? needs a paid service?):
+Free. 5 minutes.
+
+Trade-offs / risks:
+Make sure the new account works before deleting the old one, or you lock yourself out.
+
+What I need from you:
+Do the 3 steps yourself (it's your account), or tell me to do it and give me the email to use.

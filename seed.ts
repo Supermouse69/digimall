@@ -1,3 +1,4 @@
+import { randomBytes } from "crypto";
 import { getPayload } from "payload";
 import config from "@payload-config";
 
@@ -146,16 +147,17 @@ const seed = async () => {
     data: {
       name: "admin",
       slug: "admin",
-      stripeAccountId: "admin",
     },
   });
 
-  // Create admin user
+  // Create admin user with a random password (never a known default like "demo").
+  // Shown once here so the developer can log in, then change it in the admin panel.
+  const adminPassword = randomBytes(18).toString("base64url");
   await payload.create({
     collection: "users",
     data: {
       email: "admin@demo.com",
-      password: "demo",
+      password: adminPassword,
       roles: ["super-admin"],
       username: "admin",
       tenants: [
@@ -165,6 +167,7 @@ const seed = async () => {
       ],
     },
   });
+  console.log(`Super-admin created: admin@demo.com / ${adminPassword}  (change it after first login)`);
 
   for (const category of categories) {
     const parentCategory = await payload.create({

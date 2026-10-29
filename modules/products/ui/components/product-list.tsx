@@ -1,6 +1,6 @@
 "use client";
 
-import { useSuspenseInfiniteQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { useSuspenseInfiniteQuery } from "@tanstack/react-query";
 
 import { useTRPC } from "@/trpc/client";
 import { useProductFilters } from "../../hooks/use-product-filters";
@@ -57,8 +57,6 @@ export const ProductList = ({ category, tenantSlug, narrowView }: Props) => {
           imageUrl={product.image?.url}
           tenantSlug={product.tenant?.slug}
           tenantImageUrl={product.tenant?.image?.url}
-          reviewRating={6}
-          reviewCount={7}
           price = {product.price}        
         />
       ))}

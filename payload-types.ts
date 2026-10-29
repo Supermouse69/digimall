@@ -174,15 +174,10 @@ export interface Tenant {
    */
   name: string;
   /**
-   * This is the subdomain for the store (e.g. [slug].funroad.com)
+   * Used in the store's web address. Only the super-admin can change it.
    */
   slug: string;
   image?: (string | null) | Media;
-  stripeAccountId: string;
-  /**
-   * You cannot create products until you submit your Stripe details
-   */
-  stripeDetailsSubmitted?: boolean | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -240,7 +235,6 @@ export interface Product {
   tags?: (string | Tag)[] | null;
   image?: (string | null) | Media;
   cover?: (string | null) | Media;
-  refundPolicy?: ('30-day' | '14-day' | '7-day' | '3-day' | '1-day' | 'no-refunds') | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -420,7 +414,6 @@ export interface ProductsSelect<T extends boolean = true> {
   tags?: T;
   image?: T;
   cover?: T;
-  refundPolicy?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -442,8 +435,6 @@ export interface TenantsSelect<T extends boolean = true> {
   name?: T;
   slug?: T;
   image?: T;
-  stripeAccountId?: T;
-  stripeDetailsSubmitted?: T;
   updatedAt?: T;
   createdAt?: T;
 }

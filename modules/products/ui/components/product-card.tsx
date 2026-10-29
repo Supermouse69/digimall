@@ -1,6 +1,5 @@
 import Link from "next/link";
 import Image from "next/image";
-import { StarIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { formatCurrency, generateTenantURL } from "@/lib/utils";
 
@@ -10,8 +9,6 @@ interface ProductCardProps {
   imageUrl?: string | null;
   tenantSlug: string;
   tenantImageUrl?: string | null;
-  reviewRating: number;
-  reviewCount: number;
   price: number;
 }
 
@@ -21,8 +18,6 @@ export const ProductCard = ({
   imageUrl,
   tenantSlug,
   tenantImageUrl,
-  reviewRating,
-  reviewCount,
   price,
 }: ProductCardProps) => {
   const router = useRouter();
@@ -49,7 +44,6 @@ export const ProductCard = ({
         </div>
         <div className="p-4 border-y flex flex-col gap-3 flex-1">
           <h2 className="text-lg font-medium line-clamp-4">{name}</h2>
-          {/* TODO: Redirect to user shop */}
           <div className="flex items-center gap-2" onClick={handleUserClick}>
             {tenantImageUrl && (
               <Image
@@ -62,14 +56,6 @@ export const ProductCard = ({
             )}
             <p className="text-sm underline font-medium">{tenantSlug}</p>
           </div>
-          {reviewCount > 0 && (
-            <div className="flex items-center gap-1">
-              <StarIcon className="size-3.5 fill-black" />
-              <p className="text-sm font-medium">
-                {reviewRating} ({reviewCount})
-              </p>
-            </div>
-          )}
         </div>
         <div className= "p-4">
             <div className="relative px-2 py-1 border bg-pink-400 w-fit">
