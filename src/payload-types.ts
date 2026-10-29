@@ -73,6 +73,7 @@ export interface Config {
     products: Product;
     tags: Tag;
     tenants: Tenant;
+    'legal-pages': LegalPage;
     'payload-kv': PayloadKv;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
@@ -90,6 +91,7 @@ export interface Config {
     products: ProductsSelect<false> | ProductsSelect<true>;
     tags: TagsSelect<false> | TagsSelect<true>;
     tenants: TenantsSelect<false> | TenantsSelect<true>;
+    'legal-pages': LegalPagesSelect<false> | LegalPagesSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
@@ -99,8 +101,12 @@ export interface Config {
     defaultIDType: string;
   };
   fallbackLocale: null;
-  globals: {};
-  globalsSelect: {};
+  globals: {
+    settings: Setting;
+  };
+  globalsSelect: {
+    settings: SettingsSelect<false> | SettingsSelect<true>;
+  };
   locale: null;
   widgets: {
     collections: CollectionsWidget;
@@ -146,6 +152,25 @@ export interface User {
         id?: string | null;
       }[]
     | null;
+  phone?: string | null;
+  buyerProfile?: {
+    barangay?: string | null;
+    addressDetails?: string | null;
+    /**
+     * @minItems 2
+     * @maxItems 2
+     */
+    location?: [number, number] | null;
+  };
+  consents?:
+    | {
+        document: 'terms-buyer' | 'terms-seller' | 'terms-rider' | 'privacy';
+        version: number;
+        acceptedAt: string;
+        id?: string | null;
+      }[]
+    | null;
+  ageConfirmedAt?: string | null;
   updatedAt: string;
   createdAt: string;
   email: string;
@@ -254,6 +279,37 @@ export interface Tag {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "legal-pages".
+ */
+export interface LegalPage {
+  id: string;
+  slug: 'terms-buyer' | 'terms-seller' | 'terms-rider' | 'privacy';
+  title: string;
+  content: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  };
+  /**
+   * Raise this number for real changes. Users who agreed to an older version must agree again. Leave it for typo fixes.
+   */
+  version: number;
+  publishedAt?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv".
  */
 export interface PayloadKv {
@@ -299,6 +355,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'tenants';
         value: string | Tenant;
+      } | null)
+    | ({
+        relationTo: 'legal-pages';
+        value: string | LegalPage;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -355,6 +415,23 @@ export interface UsersSelect<T extends boolean = true> {
         tenant?: T;
         id?: T;
       };
+  phone?: T;
+  buyerProfile?:
+    | T
+    | {
+        barangay?: T;
+        addressDetails?: T;
+        location?: T;
+      };
+  consents?:
+    | T
+    | {
+        document?: T;
+        version?: T;
+        acceptedAt?: T;
+        id?: T;
+      };
+  ageConfirmedAt?: T;
   updatedAt?: T;
   createdAt?: T;
   email?: T;
@@ -443,6 +520,19 @@ export interface TenantsSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "legal-pages_select".
+ */
+export interface LegalPagesSelect<T extends boolean = true> {
+  slug?: T;
+  title?: T;
+  content?: T;
+  version?: T;
+  publishedAt?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv_select".
  */
 export interface PayloadKvSelect<T extends boolean = true> {
@@ -480,6 +570,62 @@ export interface PayloadMigrationsSelect<T extends boolean = true> {
   batch?: T;
   updatedAt?: T;
   createdAt?: T;
+}
+/**
+ * Marketplace settings. Only the super-admin can see or change these.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "settings".
+ */
+export interface Setting {
+  id: string;
+  /**
+   * Buyers pick one of these at sign-up. Removing one doesn't change existing accounts.
+   */
+  barangays: {
+    name: string;
+    id?: string | null;
+  }[];
+  /**
+   * Longitude, latitude. The sign-up map starts here.
+   *
+   * @minItems 2
+   * @maxItems 2
+   */
+  serviceCenter: [number, number];
+  /**
+   * A buyer's map pin must be within this straight-line distance.
+   */
+  serviceRadiusKm: number;
+  /**
+   * Shown in the sign-up checkbox ("I am at least __ years old"). Must match your Terms.
+   */
+  minimumAge: number;
+  /**
+   * Short summary from your Terms: cancellation once 'On the way', delivery fee, refunds, paid-but-unbooked orders. One point per line.
+   */
+  signupKeyPoints?: string | null;
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "settings_select".
+ */
+export interface SettingsSelect<T extends boolean = true> {
+  barangays?:
+    | T
+    | {
+        name?: T;
+        id?: T;
+      };
+  serviceCenter?: T;
+  serviceRadiusKm?: T;
+  minimumAge?: T;
+  signupKeyPoints?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

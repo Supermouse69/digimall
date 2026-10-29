@@ -14,6 +14,8 @@ import { Users } from "./collections/Users";
 import { Products } from "./collections/Products";
 import { Tags } from "./collections/Tags";
 import { Tenants } from "./collections/Tenants";
+import { LegalPages } from "./collections/LegalPages";
+import { Settings } from "./globals/Settings";
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -34,7 +36,8 @@ export default buildConfig({
       baseDir: path.resolve(dirname),
     },
   },
-  collections: [Users, Media, Categories, Products, Tags, Tenants],
+  collections: [Users, Media, Categories, Products, Tags, Tenants, LegalPages],
+  globals: [Settings],
   editor: lexicalEditor(),
   // Not used (the app uses tRPC + REST); off to shrink the attack surface
   graphQL: {
