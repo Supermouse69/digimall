@@ -39,6 +39,7 @@ export const ProductView = ({ productId, tenantSlug }: ProductViewProps) => {
             src={data.cover?.url || "/placeholder.svg"} //added cover for diffrent picture for inside item shop vs slection item card/product card
             alt={data.name}
             fill
+            sizes="100vw"
             className="object-cover"
           />
         </div>

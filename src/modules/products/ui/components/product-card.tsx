@@ -38,6 +38,8 @@ export const ProductCard = ({
           <Image
             alt={name}
             fill
+            // Matches the product grid: 1 col on phones, 2 on tablets, 3-4 on wide screens
+            sizes="(min-width: 1536px) 25vw, (min-width: 1280px) 33vw, (min-width: 640px) 50vw, 100vw"
             src={imageUrl || "/placeholder.svg"}
             className="object-cover"
           />
