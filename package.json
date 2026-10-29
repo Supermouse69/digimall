@@ -10,7 +10,7 @@
     "lint": "eslint",
     "generate:types": "bun tsx ./node_modules/payload/bin.js generate:types",
     "db:fresh": "tsx ./node_modules/payload/dist/bin/index.js migrate:fresh",
-    "db:seed": "bun run seed.ts",
+    "db:seed": "bun run src/seed.ts",
     "db:reset": "bun run db:fresh && bun run db:seed",
     "test:access": "tsx scripts/check-access.ts"
   },

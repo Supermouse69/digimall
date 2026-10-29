@@ -8,7 +8,7 @@ process.env.PAYLOAD_SECRET ??= "access-test-only";
 process.env.DATABASE_URI ??= "mongodb://127.0.0.1:1/unused";
 
 const loadConfig = async () => {
-  const mod = await import(pathToFileURL(path.resolve(process.cwd(), "payload.config.ts")).href);
+  const mod = await import(pathToFileURL(path.resolve(process.cwd(), "src", "payload.config.ts")).href);
   return mod.default;
 };
 

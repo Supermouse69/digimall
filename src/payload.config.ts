@@ -8,12 +8,12 @@ import { multiTenantPlugin } from "@payloadcms/plugin-multi-tenant";
 import { Config } from './payload-types';
 
 import { isSuperAdmin } from "./lib/access";
-import { Categories } from "./app/collections/Categories";
-import { Media } from "./app/collections/Media";
-import { Users } from "./app/collections/Users";
-import { Products } from "./app/collections/Products";
-import { Tags } from "./app/collections/Tags";
-import { Tenants } from "./app/collections/Tenants";
+import { Categories } from "./collections/Categories";
+import { Media } from "./collections/Media";
+import { Users } from "./collections/Users";
+import { Products } from "./collections/Products";
+import { Tags } from "./collections/Tags";
+import { Tenants } from "./collections/Tenants";
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
