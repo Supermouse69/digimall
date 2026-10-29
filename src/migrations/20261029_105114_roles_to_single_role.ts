@@ -24,6 +24,15 @@ const usersCollection = (payload: MigrateUpArgs['payload']) =>
 
 export async function up({ payload, session }: MigrateUpArgs): Promise<void> {
   const users = usersCollection(payload)
+
+  // Drop the unique username index FIRST: once usernames are removed, two accounts without one
+  // would count as duplicates. (Index changes can't run inside the transaction; that's harmless.)
+  const indexes = await users.indexes()
+  if (indexes.some((index) => index.name === 'username_1')) {
+    await users.dropIndex('username_1')
+    payload.logger.info('users: dropped unique index username_1')
+  }
+
   const docs = await users.find({}, { session }).toArray()
 
   for (const raw of docs) {
@@ -41,12 +50,6 @@ export async function up({ payload, session }: MigrateUpArgs): Promise<void> {
       { session },
     )
     payload.logger.info(`users: ${doc.email} -> role=${role}`)
-  }
-
-  const indexes = await users.indexes()
-  if (indexes.some((index) => index.name === 'username_1')) {
-    await users.dropIndex('username_1')
-    payload.logger.info('users: dropped unique index username_1')
   }
 }
 
