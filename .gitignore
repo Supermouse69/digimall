@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Payload local uploads (use Vercel Blob in production)
+/media
+
+# allow the env template
+!.env.example

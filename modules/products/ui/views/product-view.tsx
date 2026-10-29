@@ -40,8 +40,7 @@ export const ProductView = ({ productId, tenantSlug }: ProductViewProps) => {
       <div className="border rounded-sm bg-white overflow-hidden">
         <div className="relative aspect-[3.9] border-b">
           <Image
-            //src={data.image?.url || "/ian.jpg"} //for only same image of produtc card and the item shop
-            src={data.cover?.url || "/ian.jpg"} //added cover for diffrent picture for inside item shop vs slection item card/product card
+            src={data.cover?.url || "/placeholder.svg"} //added cover for diffrent picture for inside item shop vs slection item card/product card
             alt={data.name}
             fill
             className="object-cover"
