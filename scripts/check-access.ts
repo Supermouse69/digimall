@@ -3,6 +3,10 @@
 import { pathToFileURL } from "node:url";
 import path from "node:path";
 
+// The config needs these to build, but this test never connects to the database
+process.env.PAYLOAD_SECRET ??= "access-test-only";
+process.env.DATABASE_URI ??= "mongodb://127.0.0.1:1/unused";
+
 const loadConfig = async () => {
   const mod = await import(pathToFileURL(path.resolve(process.cwd(), "payload.config.ts")).href);
   return mod.default;

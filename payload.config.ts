@@ -4,11 +4,10 @@ import path from "path";
 import { buildConfig } from "payload";
 import { fileURLToPath } from "url";
 import sharp from "sharp";
-import {multiTenantPlugin} from "@payloadcms/plugin-multi-tenant";
-import {Config} from './payload-types';
+import { multiTenantPlugin } from "@payloadcms/plugin-multi-tenant";
+import { Config } from './payload-types';
 
-//import { Users } from "collections/Users";
-
+import { isSuperAdmin } from "./lib/access";
 import { Categories } from "./app/collections/Categories";
 import { Media } from "./app/collections/Media";
 import { Users } from "./app/collections/Users";
@@ -19,6 +18,15 @@ import { Tenants } from "./app/collections/Tenants";
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
 
+// Fail fast with a clear message instead of silently running with an empty secret
+const requireEnv = (name: string): string => {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`Missing environment variable ${name}. See .env.example.`);
+  }
+  return value;
+};
+
 export default buildConfig({
   admin: {
     user: Users.slug,
@@ -28,12 +36,16 @@ export default buildConfig({
   },
   collections: [Users, Media, Categories, Products, Tags, Tenants],
   editor: lexicalEditor(),
-  secret: process.env.PAYLOAD_SECRET || '',
+  // Not used (the app uses tRPC + REST); off to shrink the attack surface
+  graphQL: {
+    disable: true,
+  },
+  secret: requireEnv("PAYLOAD_SECRET"),
   typescript: {
     outputFile: path.resolve(dirname, 'payload-types.ts'),
   },
   db: mongooseAdapter({
-    url: process.env.DATABASE_URL || '',
+    url: requireEnv("DATABASE_URI"),
   }),
   sharp,
   plugins: [
@@ -44,7 +56,7 @@ export default buildConfig({
       tenantsArrayField: {
         includeDefaultField: false,
       },
-      userHasAccessToAllTenants: (user) => Boolean(user?.roles?.includes("super-admin"))
+      userHasAccessToAllTenants: (user) => isSuperAdmin(user),
     }),
     // storage-adapter-placeholder
   ],
