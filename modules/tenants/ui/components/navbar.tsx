@@ -62,4 +62,3 @@ export const NavbarSkeleton = () => {
         </nav>
     );
 };
-1:12;16
