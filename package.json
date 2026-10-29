@@ -15,7 +15,8 @@
     "test:access": "tsx scripts/check-access.ts",
     "seed:mock": "tsx --env-file=.env scripts/seed-mock-products.ts",
     "db:migrate": "bun tsx ./node_modules/payload/bin.js migrate",
-    "db:migrate:status": "bun tsx ./node_modules/payload/bin.js migrate:status"
+    "db:migrate:status": "bun tsx ./node_modules/payload/bin.js migrate:status",
+    "test:redirects": "tsx scripts/check-redirects.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.3.0",
