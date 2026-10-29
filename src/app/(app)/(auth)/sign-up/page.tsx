@@ -19,7 +19,10 @@ const Page = async ({ searchParams }: Props) => {
     redirect(homeForRole(session.user.role, next));
   }
 
-  return <SignUpView next={next || undefined} />;
+  // Barangays, map center, minimum age, key points and legal links all come from Settings
+  const options = await caller.settings.signupOptions();
+
+  return <SignUpView next={next || undefined} options={options} />;
 };
 
 export default Page;

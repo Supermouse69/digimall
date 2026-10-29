@@ -37,7 +37,10 @@ function check(label: string, result: unknown, expect: boolean | "where", whereM
 }
 
 const main = async () => {
-  const config = (await (await loadConfig())) as { collections: { slug: string; access: unknown; fields: unknown; upload: unknown }[] };
+  const config = (await (await loadConfig())) as {
+    collections: { slug: string; access: unknown; fields: unknown; upload: unknown }[];
+    globals: { slug: string; access: Record<string, (a: unknown) => unknown> }[];
+  };
   const col = (slug: string) => config.collections.find((c) => c.slug === slug)!;
   const req = (user: U) => ({ user, payload: {}, context: {} }) as never;
   const acc = async (slug: string, op: string, user: U, id?: string) =>
@@ -106,6 +109,23 @@ const main = async () => {
   check("seller: delete media", await acc("media", "delete", seller), false);
   const mime = (col("media").upload as { mimeTypes?: string[] }).mimeTypes;
   check("media: SVG uploads blocked", Boolean(mime && !mime.includes("image/svg+xml") && mime.length === 3), true);
+
+  console.log("--- Legal pages + settings ---");
+  check("anonymous: read legal pages", await acc("legal-pages", "read", anon), true);
+  check("seller: edit legal pages", await acc("legal-pages", "update", seller), false);
+  check("buyer: create legal page", await acc("legal-pages", "create", attacker), false);
+  check("admin: edit legal pages", await acc("legal-pages", "update", admin), true);
+  const settings = config.globals.find((g) => g.slug === "settings")!;
+  check("anonymous: read settings via API", await settings.access.read!({ req: req(anon) }), false);
+  check("seller: read settings via API", await settings.access.read!({ req: req(seller) }), false);
+  check("buyer: change settings", await settings.access.update!({ req: req(attacker) }), false);
+  check("admin: change settings", await settings.access.update!({ req: req(admin) }), true);
+
+  console.log("--- Consent records can't be faked ---");
+  check("buyer: edit own consents", await fieldAcc("users", "consents", "update", attacker), false);
+  check("buyer: set consents on create", await fieldAcc("users", "consents", "create", attacker), false);
+  check("buyer: edit own age-confirmed time", await fieldAcc("users", "ageConfirmedAt", "update", attacker), false);
+  check("admin: edit consents", await fieldAcc("users", "consents", "update", admin), true);
 
   console.log(failed === 0 ? "\nALL PASSED" : `\n${failed} FAILED`);
   process.exit(failed === 0 ? 0 : 1);

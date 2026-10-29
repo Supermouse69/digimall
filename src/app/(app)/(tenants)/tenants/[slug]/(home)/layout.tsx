@@ -3,6 +3,7 @@ import { getQueryClient,trpc } from "@/trpc/server";
 import { Navbar, NavbarSkeleton } from "@/modules/tenants/ui/components/navbar";
 import {dehydrate, HydrationBoundary} from "@tanstack/react-query";
 import { Suspense } from "react";
+import { requireCurrentConsent } from "@/modules/legal/server/require-consent";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -11,7 +12,8 @@ interface LayoutProps {
 
 const Layout = async ({ params,children }: LayoutProps) => {
   const {slug} = await params;
-  
+  await requireCurrentConsent();
+
   const queryClient = getQueryClient();
 
   void queryClient.prefetchQuery(trpc.tenants.getOne.queryOptions({
