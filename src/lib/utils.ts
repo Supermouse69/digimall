@@ -9,10 +9,12 @@ export function generateTenantURL(tenantSlug: string){
   return `/tenants/${tenantSlug}`;
 };
 
+// Philippine peso, always 2 decimals: ₱1,234.00
 export function formatCurrency(value: number | string){
-  return new Intl.NumberFormat("en-US",{
-                        style: "currency",
-                        currency:"PHP",
-                        maximumFractionDigits: 0,
-                    }).format(Number(value))
+  return new Intl.NumberFormat("en-PH", {
+    style: "currency",
+    currency: "PHP",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Number(value))
 }

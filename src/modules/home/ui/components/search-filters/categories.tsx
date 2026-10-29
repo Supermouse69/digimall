@@ -1,10 +1,8 @@
-//possible solution for the categories bug 6:38:06
-
 "use client";
 
 import { ListFilterIcon } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useParams, usePathname } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { useParams } from "next/navigation";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -19,7 +17,6 @@ interface Props {
 }
 
 export const Categories = ({ data }: Props) => {
-  const pathname = usePathname();
   const params = useParams();
 
   const containerRef = useRef<HTMLDivElement>(null);

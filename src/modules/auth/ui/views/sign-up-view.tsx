@@ -2,7 +2,7 @@
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Poppins } from "next/font/google";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -56,7 +56,7 @@ export const SignUpView = () => {
     register.mutate(values);
   };
 
-  const username = form.watch("username");
+  const username = useWatch({ control: form.control, name: "username" });
   const usernameErrors = form.formState.errors.username;
 
   const showPreview = username && !usernameErrors;
