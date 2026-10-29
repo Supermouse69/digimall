@@ -135,8 +135,11 @@ export interface UserAuthOperations {
  */
 export interface User {
   id: string;
-  username: string;
-  roles?: ('super-admin' | 'user')[] | null;
+  name: string;
+  role: 'buyer' | 'seller' | 'rider' | 'super-admin';
+  /**
+   * Sellers only: the store this account manages.
+   */
   tenants?:
     | {
         tenant: string | Tenant;
@@ -344,8 +347,8 @@ export interface PayloadMigration {
  * via the `definition` "users_select".
  */
 export interface UsersSelect<T extends boolean = true> {
-  username?: T;
-  roles?: T;
+  name?: T;
+  role?: T;
   tenants?:
     | T
     | {

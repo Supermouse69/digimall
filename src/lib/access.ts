@@ -1,25 +1,36 @@
 import type { Access, ClientUser, FieldAccess, Where } from "payload";
 
 import type { User } from "@/payload-types";
+import type { UserRole } from "@/modules/auth/roles";
 
 // Deny by default: every collection uses these helpers instead of Payload's
 // built-in default ("any logged-in user can do anything").
 
 type AnyUser = User | ClientUser | null | undefined;
 
-export const isSuperAdmin = (user: AnyUser): boolean =>
-  Boolean(user?.roles?.includes("super-admin"));
+export const getRole = (user: AnyUser): UserRole | null =>
+  (user as { role?: UserRole } | null | undefined)?.role ?? null;
 
-// IDs of the stores (tenants) this user belongs to.
-export const getUserTenantIds = (user: AnyUser): string[] =>
-  (user?.tenants ?? [])
-    .map((row: { tenant?: unknown }) => {
+export const isSuperAdmin = (user: AnyUser): boolean => getRole(user) === "super-admin";
+export const isSeller = (user: AnyUser): boolean => getRole(user) === "seller";
+export const isRider = (user: AnyUser): boolean => getRole(user) === "rider";
+export const isBuyer = (user: AnyUser): boolean => getRole(user) === "buyer";
+
+// Payload admin panel: sellers (their own store) and the super-admin (everything)
+export const canUseAdminPanel = (user: AnyUser): boolean => isSuperAdmin(user) || isSeller(user);
+
+// IDs of the stores (tenants) a seller manages. Other roles never manage a store.
+export const getUserTenantIds = (user: AnyUser): string[] => {
+  if (!isSeller(user)) return [];
+  return ((user as { tenants?: { tenant?: unknown }[] | null })?.tenants ?? [])
+    .map((row) => {
       const tenant = row?.tenant;
       if (typeof tenant === "string") return tenant;
       if (tenant && typeof tenant === "object" && "id" in tenant) return String(tenant.id);
       return null;
     })
-    .filter((id: string | null): id is string => Boolean(id));
+    .filter((id): id is string => Boolean(id));
+};
 
 export const hasTenant = (user: AnyUser): boolean => getUserTenantIds(user).length > 0;
 
@@ -36,7 +47,7 @@ export const superAdminOrSelf: Access = ({ req }) => {
   return { id: { equals: req.user.id } } satisfies Where;
 };
 
-// Super-admin: everything. Store member: only docs whose `field` points to one of their stores.
+// Super-admin: everything. Seller: only docs whose `field` points to one of their stores.
 export const superAdminOrOwnTenant =
   (field: "id" | "tenant"): Access =>
   ({ req }) => {

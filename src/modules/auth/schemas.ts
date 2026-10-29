@@ -1,27 +1,17 @@
 import z from "zod";
 
-export const loginSchema =  z.object({
-          //email: z.string().email(), //deprecated instead use
-          email: z.email(),
-          password: z.string(),
-          
-        });
+// The page to return to after login (checked again on the server with safeRedirectPath)
+const nextPath = z.string().max(300).optional();
+
+export const loginSchema = z.object({
+  email: z.email().max(254),
+  password: z.string().min(1, "Enter your password").max(128),
+  next: nextPath,
+});
 
 export const registerSchema = z.object({
-  //email: z.string().email(), //deprecated instead use
-  email: z.email(),
+  name: z.string().trim().min(2, "Enter your full name").max(100),
+  email: z.email().max(254),
   password: z.string().min(10, "Password must be at least 10 characters").max(128),
-  username: z
-    .string()
-    .min(3, "Username must be at least 3 characters")
-    .max(63, "Username must be less than 63 characters")
-    .regex(
-      /^[a-z0-9][a-z0-9-]*[a-z0-9]$/,
-      "Username can only contain lowercase letters, numbers and hypens. It must start and end with a letter or number",
-    )
-    .refine(
-      (val) => !val.includes("--"),
-      "Username cannot contain consecutive hypens",
-    )
-    .transform((val) => val.toLowerCase()),
+  next: nextPath,
 });

@@ -14,9 +14,12 @@ const loadConfig = async () => {
 
 type U = Record<string, unknown> | null;
 const anon: U = null;
-const attacker: U = { id: "u-attacker", collection: "users", roles: ["user"], tenants: [] };
-const seller: U = { id: "u-seller", collection: "users", roles: ["user"], tenants: [{ tenant: "t-1" }] };
-const admin: U = { id: "u-admin", collection: "users", roles: ["super-admin"], tenants: [] };
+const attacker: U = { id: "u-attacker", collection: "users", role: "buyer", tenants: [] };
+const seller: U = { id: "u-seller", collection: "users", role: "seller", tenants: [{ tenant: "t-1" }] };
+const admin: U = { id: "u-admin", collection: "users", role: "super-admin", tenants: [] };
+const rider: U = { id: "u-rider", collection: "users", role: "rider", tenants: [] };
+// A buyer who somehow got a store attached (e.g. old data) must NOT get seller powers
+const buyerWithStore: U = { id: "u-bws", collection: "users", role: "buyer", tenants: [{ tenant: "t-1" }] };
 
 let failed = 0;
 const show = (r: unknown) => (typeof r === "object" ? JSON.stringify(r) : String(r));
@@ -45,10 +48,10 @@ const main = async () => {
     field(slug, name).access?.[op]?.({ req: req(user), id: "x" }) ?? "NO RULE";
 
   console.log("--- The takeover attack: attacker makes themselves super-admin ---");
-  check("attacker: update roles field", await fieldAcc("users", "roles", "update", attacker), false);
-  check("attacker: set roles on create", await fieldAcc("users", "roles", "create", attacker), false);
-  check("seller: update roles field", await fieldAcc("users", "roles", "update", seller), false);
-  check("admin: update roles field", await fieldAcc("users", "roles", "update", admin), true);
+  check("attacker: update role field", await fieldAcc("users", "role", "update", attacker), false);
+  check("attacker: set role on create", await fieldAcc("users", "role", "create", attacker), false);
+  check("seller: update role field", await fieldAcc("users", "role", "update", seller), false);
+  check("admin: update role field", await fieldAcc("users", "role", "update", admin), true);
   check("attacker: attach self to a store (tenants field)", await fieldAcc("users", "tenants", "update", attacker), false);
   check("admin: attach user to a store", await fieldAcc("users", "tenants", "update", admin), true);
 
@@ -61,6 +64,9 @@ const main = async () => {
   check("attacker: delete users", await acc("users", "delete", attacker), false);
   check("attacker: open Payload admin", await acc("users", "admin", attacker), false);
   check("seller: open Payload admin", await acc("users", "admin", seller), true);
+  check("rider: open Payload admin", await acc("users", "admin", rider), false);
+  check("buyer with a store attached: open Payload admin", await acc("users", "admin", buyerWithStore), false);
+  check("admin: open Payload admin", await acc("users", "admin", admin), true);
   check("admin: read all users", await acc("users", "read", admin), true);
 
   console.log("--- Stores (tenants) ---");
@@ -82,6 +88,9 @@ const main = async () => {
   check("seller: create product (own store only)", await acc("products", "create", seller), "where", "t-1");
   check("seller: update products (own store only)", await acc("products", "update", seller), "where", "t-1");
   check("seller: delete products (own store only)", await acc("products", "delete", seller), "where", "t-1");
+  check("rider: create product", await acc("products", "create", rider), false);
+  check("buyer with a store attached: create product", await acc("products", "create", buyerWithStore), false);
+  check("buyer with a store attached: update products", await acc("products", "update", buyerWithStore), false);
 
   console.log("--- Categories, tags, media ---");
   for (const slug of ["categories", "tags"]) {

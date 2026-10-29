@@ -1,12 +1,17 @@
 "use client";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { cn } from "@/lib/utils";
 import { Poppins } from "next/font/google";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import z from "zod";
+
+import { cn } from "@/lib/utils";
+import { useTRPC } from "@/trpc/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { loginSchema } from "../../schemas";
 import {
   Form,
   FormControl,
@@ -15,52 +20,57 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import z from "zod";
-import Link from "next/link";
-import {useMutation, useQueryClient} from "@tanstack/react-query";
-import { useTRPC } from "@/trpc/client";
-import { toast } from "sonner";
+
+import { loginSchema } from "../../schemas";
 
 const poppins = Poppins({
   subsets: ["latin"],
   weight: ["700"],
 });
 
-export const SignInView = () => {
-    const queryClient = useQueryClient();
-    const router = useRouter();
-    const trpc = useTRPC();
-    const login = useMutation(trpc.auth.login.mutationOptions({
-        onError:(error)=>{
-            toast.error(error.message);
-        },
-        onSuccess:async () =>{
-            await queryClient.invalidateQueries(trpc.auth.session.queryFilter());//possible solution for the categories bug 6:38:06
-            router.push("/");
-        }
-    }));
+interface Props {
+  next?: string;
+}
 
+export const SignInView = ({ next }: Props) => {
+  const queryClient = useQueryClient();
+  const router = useRouter();
+  const trpc = useTRPC();
+  const login = useMutation(trpc.auth.login.mutationOptions({
+    onError: (error) => {
+      toast.error(error.message);
+    },
+    onSuccess: async ({ redirectTo }) => {
+      await queryClient.invalidateQueries(trpc.auth.session.queryFilter());
+      // The Payload admin panel is outside this app's router, so do a full page load for it
+      if (redirectTo.startsWith("/admin")) {
+        window.location.assign(redirectTo);
+      } else {
+        router.push(redirectTo);
+        router.refresh();
+      }
+    },
+  }));
 
   const form = useForm<z.infer<typeof loginSchema>>({
-    mode: "all",
+    mode: "onTouched",
     resolver: zodResolver(loginSchema),
     defaultValues: {
       email: "",
       password: "",
+      next,
     },
   });
 
   const onSubmit = (values: z.infer<typeof loginSchema>) => {
-    login.mutate(values);
+    login.mutate({ ...values, next });
   };
 
-
-
-
+  const signUpHref = next ? `/sign-up?next=${encodeURIComponent(next)}` : "/sign-up";
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-5">
-      <div className="bg-[#F4F4F0] h-screen w-full lg:col-span-3 overflow-y-auto">
+      <div className="bg-[#F4F4F0] min-h-screen w-full lg:col-span-3 overflow-y-auto">
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(onSubmit)}
@@ -68,10 +78,8 @@ export const SignInView = () => {
           >
             <div className="flex items-center justify-between mb-8">
               <Link href="/">
-                <span
-                  className={cn("text-2x1 font-semibold", poppins.className)}
-                >
-                  TON-618 XXXXXL 5:28:26
+                <span className={cn("text-2xl font-semibold", poppins.className)}>
+                  DigiMall
                 </span>
               </Link>
               <Button
@@ -80,54 +88,50 @@ export const SignInView = () => {
                 size="sm"
                 className="text-base border-none underline"
               >
-                <Link prefetch href="/sign-up">
-                  Sign-up
+                <Link prefetch href={signUpHref}>
+                  Sign up
                 </Link>
               </Button>
             </div>
-            <h1 className="text-4x1 font-medium">
-              Welcome Gay
+            <h1 className="text-4xl font-medium">
+              Log in to DigiMall
             </h1>
-            
             <FormField
               name="email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-base"> Email</FormLabel>
+                  <FormLabel className="text-base">Email</FormLabel>
                   <FormControl>
-                    <Input {...field} />
+                    <Input {...field} type="email" autoComplete="email" />
                   </FormControl>
-                  
                   <FormMessage />
                 </FormItem>
               )}
             />
-             <FormField
+            <FormField
               name="password"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-base"> Password</FormLabel>
+                  <FormLabel className="text-base">Password</FormLabel>
                   <FormControl>
-                    <Input  {...field} type = "password"/>
+                    <Input {...field} type="password" autoComplete="current-password" />
                   </FormControl>
-                  
                   <FormMessage />
                 </FormItem>
               )}
             />
             <Button
-            disabled={login.isPending}
-            type="submit"
-            size= "lg"
-            variant= "elevated"
-            className="bg-black text-white hover:bg-pink-400 hover:text-primary"
+              disabled={login.isPending}
+              type="submit"
+              size="lg"
+              variant="elevated"
+              className="bg-black text-white hover:bg-pink-400 hover:text-primary"
             >
-                Log-In
+              {login.isPending ? "Logging in..." : "Log in"}
             </Button>
           </form>
         </Form>
       </div>
-
       <div
         className="h-screen w-full lg:col-span-2 hidden lg:block"
         style={{

@@ -158,8 +158,8 @@ const seed = async () => {
     data: {
       email: "admin@demo.com",
       password: adminPassword,
-      roles: ["super-admin"],
-      username: "admin",
+      role: "super-admin",
+      name: "Admin",
       tenants: [
         {
           tenant: adminTenant.id,

@@ -2,12 +2,13 @@ import type { CollectionConfig } from 'payload'
 import { tenantsArrayField } from "@payloadcms/plugin-multi-tenant/fields";
 
 import {
-  hasTenant,
+  canUseAdminPanel,
   isSuperAdmin,
   superAdminOnly,
   superAdminOnlyField,
   superAdminOrSelf,
 } from "@/lib/access";
+import { USER_ROLES } from "@/modules/auth/roles";
 
 // Only the super-admin can attach a user to a store.
 const defaultTenantArrayField = tenantsArrayField({
@@ -29,8 +30,8 @@ const defaultTenantArrayField = tenantsArrayField({
 export const Users: CollectionConfig = {
   slug: 'users',
   access: {
-    // Payload admin panel: store owners and the super-admin only
-    admin: ({ req }) => isSuperAdmin(req.user) || hasTenant(req.user),
+    // Payload admin panel: sellers and the super-admin only
+    admin: ({ req }) => canUseAdminPanel(req.user),
     read: superAdminOrSelf,
     // Public sign-up goes through our own server code (tRPC), not the REST API
     create: superAdminOnly,
@@ -39,6 +40,7 @@ export const Users: CollectionConfig = {
   },
   admin: {
     useAsTitle: 'email',
+    defaultColumns: ['email', 'name', 'role'],
     hidden: ({ user }) => !isSuperAdmin(user),
   },
   auth: {
@@ -49,20 +51,22 @@ export const Users: CollectionConfig = {
   },
   fields: [
     {
-      name: "username",
-      required: true,
-      unique: true,
+      name: "name",
+      label: "Full name",
       type: "text",
+      required: true,
+      maxLength: 100,
     },
     {
+      // Beta: one role per account (a store owner who wants to shop uses a separate buyer account)
+      name: "role",
+      type: "select",
+      required: true,
+      defaultValue: "buyer",
+      options: USER_ROLES.map((role) => ({ label: role, value: role })),
       admin: {
         position: "sidebar",
       },
-      name: "roles",
-      type: "select",
-      defaultValue: ["user"],
-      hasMany: true,
-      options: ["super-admin", "user"],
       access: {
         create: superAdminOnlyField,
         update: superAdminOnlyField,
@@ -73,6 +77,7 @@ export const Users: CollectionConfig = {
       admin: {
         ...(defaultTenantArrayField?.admin || {}),
         position: "sidebar",
+        description: "Sellers only: the store this account manages.",
       },
     },
   ],

@@ -1,14 +1,25 @@
-import { SignUpView } from "@/modules/auth/ui/views/sign-up-view";
 import { redirect } from "next/navigation";
+
+import { SignUpView } from "@/modules/auth/ui/views/sign-up-view";
+import { homeForRole, safeRedirectPath } from "@/modules/auth/roles";
 import { caller } from "@/trpc/server";
 
 export const dynamic = "force-dynamic";
 
-const Page=async ()=>{
-    const session = await caller.auth.session();
-        if (session.user){
-            redirect("/");
-        }
-    return <SignUpView />
+interface Props {
+  searchParams: Promise<{ next?: string | string[] }>;
 }
+
+const Page = async ({ searchParams }: Props) => {
+  const { next: rawNext } = await searchParams;
+  const next = safeRedirectPath(typeof rawNext === "string" ? rawNext : undefined, "");
+
+  const session = await caller.auth.session();
+  if (session.user) {
+    redirect(homeForRole(session.user.role, next));
+  }
+
+  return <SignUpView next={next || undefined} />;
+};
+
 export default Page;

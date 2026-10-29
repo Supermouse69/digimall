@@ -45,3 +45,6 @@ next-env.d.ts
 
 # allow the env template
 !.env.example
+
+# Local database backups (contain personal data + password hashes)
+/backups
