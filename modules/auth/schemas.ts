@@ -10,7 +10,7 @@ export const loginSchema =  z.object({
 export const registerSchema = z.object({
   //email: z.string().email(), //deprecated instead use
   email: z.email(),
-  password: z.string().min(5),
+  password: z.string().min(10, "Password must be at least 10 characters").max(128),
   username: z
     .string()
     .min(3, "Username must be at least 3 characters")

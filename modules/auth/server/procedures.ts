@@ -36,28 +36,22 @@ export const authRouter = createTRPCRouter({
         });
       }
 
-      const tenant = await ctx.db.create({
-        collection: "tenants",
-        data: {
-          name: input.username,
-          slug: input.username,
-          stripeAccountId: "test"
-        }
-      })
-
-      await ctx.db.create({
-        collection: "users",
-        data: {
-          email: input.email,
-          username: input.username,
-          password: input.password, // This will be hashed
-          tenants: [
-            {
-              tenant: tenant.id,
-            },
-          ],
-        },
-      });
+      // Stores are created only by the super-admin, so sign-up makes a plain user (no store)
+      try {
+        await ctx.db.create({
+          collection: "users",
+          data: {
+            email: input.email,
+            username: input.username,
+            password: input.password, // This will be hashed
+          },
+        });
+      } catch {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Could not create account. The email may already be in use.",
+        });
+      }
 
       const data = await ctx.db.login({
         collection: "users",
@@ -82,26 +76,34 @@ export const authRouter = createTRPCRouter({
     login: baseProcedure
     .input(loginSchema)
     .mutation(async ({ input, ctx }) => {
-      const data = await ctx.db.login({
-        collection: "users",
-        data: {
-          email: input.email,
-          password: input.password,
-        },
-      });
+      let token: string | undefined;
+      try {
+        const data = await ctx.db.login({
+          collection: "users",
+          data: {
+            email: input.email,
+            password: input.password,
+          },
+        });
+        token = data.token;
+      } catch {
+        // Same message for every failure so attackers can't tell which emails exist
+        token = undefined;
+      }
 
-      if (!data.token) {
+      if (!token) {
         throw new TRPCError({
           code: "UNAUTHORIZED",
-          message: "Failed to login",
+          message: "Wrong email or password",
         });
       }
 
       await generateAuthCookie({
         prefix: ctx.db.config.cookiePrefix,
-        value: data.token,
+        value: token,
       });
 
-      return data;
+      // The token lives only in the HttpOnly cookie; never send it to page JavaScript
+      return { success: true };
     }),
 });

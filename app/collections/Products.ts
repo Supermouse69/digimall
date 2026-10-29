@@ -1,8 +1,16 @@
 import type { CollectionConfig } from "payload";
 
+import { anyone, superAdminOrOwnTenant, superAdminOrStoreMember } from "@/lib/access";
+
 export const Products: CollectionConfig = {
   slug: "products",
-  
+  access: {
+    read: anyone,
+    create: superAdminOrStoreMember,
+    update: superAdminOrOwnTenant("tenant"),
+    delete: superAdminOrOwnTenant("tenant"),
+  },
+
   fields: [
     {
       name: "name",

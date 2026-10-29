@@ -1,7 +1,16 @@
 import type { CollectionConfig } from 'payload'
 
+import { anyone, superAdminOnly, superAdminOnlyField, superAdminOrOwnTenant } from "@/lib/access";
+
 export const Tenants: CollectionConfig = {
   slug: 'tenants',
+  access: {
+    read: anyone,
+    // Stores are created only by the super-admin (CLAUDE.md §8)
+    create: superAdminOnly,
+    update: superAdminOrOwnTenant("id"),
+    delete: superAdminOnly,
+  },
   admin: {
     useAsTitle: 'slug',
   },
@@ -21,6 +30,9 @@ export const Tenants: CollectionConfig = {
       index: true,
       required: true,
       unique: true,
+      access: {
+        update: superAdminOnlyField,
+      },
       admin: {
         description:
           "This is the subdomain for the store (e.g. [slug].funroad.com)",
@@ -35,6 +47,9 @@ export const Tenants: CollectionConfig = {
       name: "stripeAccountId",
       type: "text",
       required: true,
+      access: {
+        update: superAdminOnlyField,
+      },
       admin: {
         readOnly: true,
       },
@@ -42,6 +57,9 @@ export const Tenants: CollectionConfig = {
     {
       name: "stripeDetailsSubmitted",
       type: "checkbox",
+      access: {
+        update: superAdminOnlyField,
+      },
       admin: {
         readOnly: true,
         description: "You cannot create products until you submit your Stripe details",
