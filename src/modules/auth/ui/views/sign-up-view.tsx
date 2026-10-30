@@ -1,11 +1,11 @@
 "use client";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { Poppins } from "next/font/google";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import z from "zod";
 
@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/form";
 
 import { registerSchema } from "../../schemas";
+import { CheckEmailNotice } from "../components/check-email-notice";
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -60,17 +61,16 @@ const legalLink = (slug: string, label: string) => (
 );
 
 export const SignUpView = ({ next, options }: Props) => {
-  const router = useRouter();
   const trpc = useTRPC();
-  const queryClient = useQueryClient();
+  // After sign-up we show "check your email" instead of logging in (email must be confirmed first)
+  const [sentTo, setSentTo] = useState<string | null>(null);
   const register = useMutation(trpc.auth.register.mutationOptions({
     onError: (error) => {
       toast.error(error.message);
     },
-    onSuccess: async ({ redirectTo }) => {
-      await queryClient.invalidateQueries(trpc.auth.session.queryFilter());
-      router.push(redirectTo);
-      router.refresh();
+    onSuccess: (_result, variables) => {
+      setSentTo(variables.email);
+      window.scrollTo({ top: 0 });
     },
   }));
 
@@ -127,8 +127,13 @@ export const SignUpView = ({ next, options }: Props) => {
               </Button>
             </div>
             <h1 className="text-3xl lg:text-4xl font-medium">
-              Create your buyer account
+              {sentTo ? "Almost done!" : "Create your buyer account"}
             </h1>
+
+            {sentTo ? (
+              <CheckEmailNotice email={sentTo} />
+            ) : (
+            <>
 
             <FormField
               name="name"
@@ -320,6 +325,8 @@ export const SignUpView = ({ next, options }: Props) => {
             >
               {register.isPending ? "Creating account..." : "Create account"}
             </Button>
+            </>
+            )}
           </form>
         </Form>
       </div>

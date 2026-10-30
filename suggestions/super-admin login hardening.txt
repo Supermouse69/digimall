@@ -50,3 +50,6 @@ What I need from you:
 1. "Yes" to this design, the 2 packages, and the ADMIN_ENTRY_PATH env var.
 2. An authenticator app installed on your phone.
 3. Your real super-admin email (to replace admin@demo.com — see that suggestion file).
+
+Added 2026-10-30 (from Phase 2c): password reset must not bypass 2FA. After a super-admin resets
+their password, they still need the hidden entry + 6-digit code to log in (the reset will not log them in).

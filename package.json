@@ -17,7 +17,8 @@
     "db:migrate": "bun tsx ./node_modules/payload/bin.js migrate",
     "db:migrate:status": "bun tsx ./node_modules/payload/bin.js migrate:status",
     "test:redirects": "tsx scripts/check-redirects.ts",
-    "test:signup": "tsx scripts/check-signup-rules.ts"
+    "test:signup": "tsx scripts/check-signup-rules.ts",
+    "test:emails": "tsx scripts/check-emails.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.3.0",

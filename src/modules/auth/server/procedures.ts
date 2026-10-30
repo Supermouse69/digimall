@@ -1,5 +1,7 @@
+import { randomBytes } from "crypto";
 import { TRPCError } from "@trpc/server";
 import { headers as getHeaders } from "next/headers";
+import { UnverifiedEmail } from "payload";
 
 import { baseProcedure, createTRPCRouter, protectedProcedure } from "@/trpc/init";
 import { getUserTenantIds } from "@/lib/access";
@@ -13,10 +15,20 @@ import {
   REQUIRED_DOCUMENTS,
 } from "@/modules/legal/server/consents";
 import { getSettings, isInServiceArea } from "@/modules/settings/server/settings";
+import { verifyEmailTemplate } from "@/modules/email/templates";
 
 import { generateAuthCookie } from "../utils";
 import { homeForRole, type UserRole } from "../roles";
-import { acceptConsentsSchema, loginSchema, registerSchema } from "../schemas";
+import {
+  acceptConsentsSchema,
+  emailOnlySchema,
+  loginSchema,
+  registerSchema,
+  resetPasswordSchema,
+  verifyEmailSchema,
+} from "../schemas";
+
+const RESEND_VERIFICATION_COOLDOWN_MS = 60 * 1000;
 
 // What the browser is allowed to know about the logged-in user. Never send the whole user document.
 export type SessionUser = {
@@ -98,6 +110,7 @@ export const authRouter = createTRPCRouter({
             },
             consents: consentRecords(documents, now),
             ageConfirmedAt: now.toISOString(),
+            verificationSentAt: now.toISOString(),
           },
         });
       } catch {
@@ -107,27 +120,96 @@ export const authRouter = createTRPCRouter({
         });
       }
 
-      const data = await ctx.db.login({
-        collection: "users",
-        data: {
-          email: input.email,
-          password: input.password,
-        },
-      });
+      // Payload emailed a confirmation link. No login until the email is confirmed.
+      return { verificationSent: true as const };
+    }),
 
-      if (!data.token) {
+  // Confirms the email from the link we sent (/verify-email?token=...)
+  verifyEmail: baseProcedure
+    .input(verifyEmailSchema)
+    .mutation(async ({ input, ctx }) => {
+      try {
+        await ctx.db.verifyEmail({ collection: "users", token: input.token });
+      } catch {
         throw new TRPCError({
-          code: "UNAUTHORIZED",
-          message: "Failed to login",
+          code: "BAD_REQUEST",
+          message: "This link is invalid or was already used.",
+        });
+      }
+      return { verified: true as const };
+    }),
+
+  // Same answer whether or not the email has an account, so nobody can check who's registered.
+  resendVerification: baseProcedure
+    .input(emailOnlySchema)
+    .mutation(async ({ input, ctx }) => {
+      const { docs } = await ctx.db.find({
+        collection: "users",
+        where: { email: { equals: input.email.toLowerCase() } },
+        limit: 1,
+        depth: 0,
+        showHiddenFields: true,
+      });
+      const user = docs[0] as (User & { _verified?: boolean | null }) | undefined;
+
+      if (user && user._verified === false) {
+        const lastSent = user.verificationSentAt ? Date.parse(user.verificationSentAt) : 0;
+        if (Date.now() - lastSent > RESEND_VERIFICATION_COOLDOWN_MS) {
+          const token = randomBytes(20).toString("hex");
+          // Database-level update: the token field is internal to Payload's auth
+          await ctx.db.db.updateOne({
+            collection: "users",
+            id: user.id,
+            data: { _verificationToken: token, verificationSentAt: new Date().toISOString() },
+          });
+          const { subject, html } = verifyEmailTemplate({ name: user.name, token });
+          await ctx.db.sendEmail({ to: user.email, subject, html });
+        }
+      }
+
+      return { success: true as const };
+    }),
+
+  // Same answer whether or not the email has an account. Payload also limits repeat requests.
+  forgotPassword: baseProcedure
+    .input(emailOnlySchema)
+    .mutation(async ({ input, ctx }) => {
+      try {
+        await ctx.db.forgotPassword({ collection: "users", data: { email: input.email } });
+      } catch {
+        // Ignore: never reveal whether the email exists
+      }
+      return { success: true as const };
+    }),
+
+  // Sets the new password from the emailed link, then logs the user in
+  resetPassword: baseProcedure
+    .input(resetPasswordSchema)
+    .mutation(async ({ input, ctx }) => {
+      let token: string | undefined;
+      let user: User | undefined;
+      try {
+        const result = await ctx.db.resetPassword({
+          collection: "users",
+          data: { token: input.token, password: input.password },
+          overrideAccess: true,
+        });
+        token = result.token;
+        user = result.user as unknown as User | undefined;
+      } catch {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "This link is invalid or has expired. Please ask for a new one.",
         });
       }
 
-      await generateAuthCookie({
-        prefix: ctx.db.config.cookiePrefix,
-        value: data.token,
-      });
+      // Unverified buyers must still confirm their email before they can log in
+      if (!token || (user as { _verified?: boolean | null } | undefined)?._verified === false) {
+        return { redirectTo: "/login?reset=1" };
+      }
 
-      return { redirectTo: homeForRole("buyer", input.next) };
+      await generateAuthCookie({ prefix: ctx.db.config.cookiePrefix, value: token });
+      return { redirectTo: homeForRole(user?.role) };
     }),
 
   login: baseProcedure
@@ -145,8 +227,16 @@ export const authRouter = createTRPCRouter({
         });
         token = data.token;
         role = (data.user as User | undefined)?.role;
-      } catch {
-        // Same message for every failure so attackers can't tell which emails exist
+      } catch (error) {
+        // Payload only says "unverified" AFTER the password was correct, so this reveals nothing
+        // to someone guessing emails.
+        if (error instanceof UnverifiedEmail) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Please confirm your email first. Check your inbox for our link.",
+          });
+        }
+        // Same message for every other failure so attackers can't tell which emails exist
         token = undefined;
       }
 

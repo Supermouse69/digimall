@@ -5,6 +5,7 @@ import { LEGAL_PAGE_SLUGS } from "@/collections/LegalPages";
 import { fromPoint, isValidLatLng } from "@/lib/geo";
 import { isPhMobile, normalizePhMobile, PH_MOBILE_HINT } from "@/lib/ph-phone";
 import { getSettings, isInServiceArea } from "@/modules/settings/server/settings";
+import { resetPasswordTemplate, verifyEmailTemplate } from "@/modules/email/templates";
 
 import {
   canUseAdminPanel,
@@ -52,6 +53,18 @@ export const Users: CollectionConfig = {
     cookies: {
       sameSite: "Lax",
       secure: process.env.NODE_ENV === "production",
+    },
+    // New accounts must confirm their email before logging in. Payload only blocks accounts
+    // marked unverified, so accounts created before this existed keep working.
+    verify: {
+      generateEmailSubject: () => verifyEmailTemplate({ token: "" }).subject,
+      generateEmailHTML: ({ token, user }) => verifyEmailTemplate({ name: user?.name, token }).html,
+    },
+    forgotPassword: {
+      expiration: 60 * 60 * 1000, // 1 hour
+      generateEmailSubject: () => resetPasswordTemplate({ token: "" }).subject,
+      generateEmailHTML: (args) =>
+        resetPasswordTemplate({ name: args?.user?.name, token: args?.token ?? "" }).html,
     },
   },
   fields: [
@@ -154,6 +167,17 @@ export const Users: CollectionConfig = {
         { name: "version", type: "number", required: true },
         { name: "acceptedAt", type: "date", required: true },
       ],
+    },
+    {
+      // When we last emailed a verification link (to slow down "resend" spam). Server code only.
+      name: "verificationSentAt",
+      type: "date",
+      access: {
+        read: () => false,
+        create: () => false,
+        update: () => false,
+      },
+      admin: { hidden: true },
     },
     {
       name: "ageConfirmedAt",

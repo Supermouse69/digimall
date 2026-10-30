@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Poppins } from "next/font/google";
 import { useForm } from "react-hook-form";
@@ -22,6 +23,7 @@ import {
 } from "@/components/ui/form";
 
 import { loginSchema } from "../../schemas";
+import { CheckEmailNotice } from "../components/check-email-notice";
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -30,14 +32,26 @@ const poppins = Poppins({
 
 interface Props {
   next?: string;
+  // Friendly note after an email link: "verified" or "reset"
+  notice?: "verified" | "reset";
 }
 
-export const SignInView = ({ next }: Props) => {
+const NOTICES = {
+  verified: "Your email is confirmed. You can log in now.",
+  reset: "Your password was changed. Please log in.",
+} as const;
+
+export const SignInView = ({ next, notice }: Props) => {
+  const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const router = useRouter();
   const trpc = useTRPC();
   const login = useMutation(trpc.auth.login.mutationOptions({
-    onError: (error) => {
+    onError: (error, variables) => {
+      if (error.data?.code === "FORBIDDEN") {
+        setUnverifiedEmail(variables.email);
+        return;
+      }
       toast.error(error.message);
     },
     onSuccess: async ({ redirectTo }) => {
@@ -96,6 +110,10 @@ export const SignInView = ({ next }: Props) => {
             <h1 className="text-4xl font-medium">
               Log in to DigiMall
             </h1>
+            {notice && !unverifiedEmail && (
+              <p className="rounded-md border border-green-600 bg-green-50 p-3">{NOTICES[notice]}</p>
+            )}
+            {unverifiedEmail && <CheckEmailNotice email={unverifiedEmail} />}
             <FormField
               name="email"
               render={({ field }) => (
@@ -117,6 +135,9 @@ export const SignInView = ({ next }: Props) => {
                     <Input {...field} type="password" autoComplete="current-password" />
                   </FormControl>
                   <FormMessage />
+                  <Link href="/forgot-password" className="text-sm underline w-fit">
+                    Forgot password?
+                  </Link>
                 </FormItem>
               )}
             />

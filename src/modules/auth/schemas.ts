@@ -40,3 +40,25 @@ export const registerSchema = z.object({
 export const acceptConsentsSchema = z.object({
   accept: mustAccept("Please tick the box to continue"),
 });
+
+export const emailOnlySchema = z.object({
+  email: z.email().max(254),
+});
+
+// Tokens from email links: Payload makes 40 hex characters; allow a little room, nothing else
+const emailToken = z.string().min(20).max(128).regex(/^[a-zA-Z0-9]+$/, "This link is invalid.");
+
+export const verifyEmailSchema = z.object({
+  token: emailToken,
+});
+
+export const resetPasswordSchema = z
+  .object({
+    token: emailToken,
+    password: z.string().min(10, "Password must be at least 10 characters").max(128),
+    confirmPassword: z.string(),
+  })
+  .refine((values) => values.password === values.confirmPassword, {
+    message: "Passwords don't match",
+    path: ["confirmPassword"],
+  });
