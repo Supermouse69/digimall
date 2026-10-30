@@ -16,6 +16,10 @@ const check = (label: string, ok: boolean, info?: unknown) => {
 };
 
 const payload = await getPayload({ config });
+// Wait until every collection + index exists: MongoDB can't create them inside a transaction
+await Promise.all(
+  Object.values(payload.db.collections).map((model) => (model as { init: () => Promise<unknown> }).init()),
+);
 const req = await createLocalReq({}, payload);
 await initTransaction(req);
 
@@ -71,16 +75,6 @@ try {
   check("rider invite: rider profile created", profiles.docs.length === 1);
   check("rider invite: profile starts as pending", profiles.docs[0]?.status === "pending", profiles.docs[0]?.status);
 
-  // --- Rules ---
-  const duplicate = await payload
-    .create({ collection: "invites", data: { email: SELLER_EMAIL, name: "Again", role: "rider" }, req })
-    .then(() => "created", (error: Error) => error.message);
-  check("duplicate email is refused", duplicate !== "created", duplicate);
-  const noStore = await payload
-    .create({ collection: "invites", data: { email: `no-store-${STAMP}@example.invalid`, name: "X", role: "seller" }, req })
-    .then(() => "created", (error: Error) => error.message);
-  check("seller invite without a store is refused", noStore !== "created", noStore);
-
   const logs = await payload.find({
     collection: "audit-logs",
     where: { action: { equals: "invite.sent" } },
@@ -89,15 +83,46 @@ try {
     depth: 0,
     req,
   });
-  check("audit log: invites recorded", logs.docs.length >= 3, logs.docs.length);
+  check("audit log: invites recorded (2 invites + 1 resend)", logs.docs.length >= 3, logs.docs.length);
 } finally {
   // Cancel everything this test did
   await killTransaction(req);
 }
 
+// --- Rules that must REFUSE an invite ---
+// A failed Payload operation cancels its transaction, so each check gets its own fresh one.
+// That way a broken rule could never accidentally save a real account.
+const expectRefused = async (label: string, data: Record<string, unknown>, setup?: (r: typeof req) => Promise<void>) => {
+  const ruleReq = await createLocalReq({}, payload);
+  await initTransaction(ruleReq);
+  try {
+    if (setup) await setup(ruleReq);
+    const result = await payload
+      .create({ collection: "invites", data: data as never, req: ruleReq })
+      .then(() => "created", (error: Error) => error.message);
+    check(label, result !== "created", result);
+  } finally {
+    await killTransaction(ruleReq);
+  }
+};
+
+const dupEmail = `dup-${STAMP}@example.invalid`;
+await expectRefused(
+  "duplicate email is refused",
+  { email: dupEmail, name: "Again", role: "rider" },
+  async (ruleReq) => {
+    await payload.create({ collection: "invites", data: { email: dupEmail, name: "First", role: "rider" }, req: ruleReq });
+  },
+);
+await expectRefused("seller invite without a store is refused", {
+  email: `no-store-${STAMP}@example.invalid`,
+  name: "X",
+  role: "seller",
+});
+
 const leftovers = await payload.find({
   collection: "users",
-  where: { email: { in: [SELLER_EMAIL, RIDER_EMAIL] } },
+  where: { email: { in: [SELLER_EMAIL, RIDER_EMAIL, dupEmail, `no-store-${STAMP}@example.invalid`] } },
   depth: 0,
 });
 check("cleanup: nothing was saved (transaction cancelled)", leftovers.docs.length === 0, leftovers.docs.length);

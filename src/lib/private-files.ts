@@ -19,7 +19,8 @@ export const ownPrivateFile =
     const id = relationId(value);
     if (!id || isSuperAdmin(req.user)) return true;
     const file = await req.payload
-      .findByID({ collection: "private-media", id, depth: 0, overrideAccess: true })
+      // Same request = same database transaction, so a file uploaded moments ago is visible
+      .findByID({ collection: "private-media", id, depth: 0, overrideAccess: true, req })
       .catch(() => null);
     if (!file) return "File not found.";
     if (relationId(file.owner) !== req.user?.id || file.purpose !== purpose) {

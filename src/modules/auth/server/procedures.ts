@@ -238,7 +238,6 @@ export const authRouter = createTRPCRouter({
             collection: "invites",
             id: invite.id,
             data: { status: "accepted", acceptedAt: new Date().toISOString() },
-            context: { skipInviteHook: true },
             overrideAccess: true,
           });
           await ctx.db.create({

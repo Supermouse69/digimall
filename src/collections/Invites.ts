@@ -9,8 +9,6 @@ import { writeAuditLog } from "@/modules/audit/server/audit-log";
 export const INVITE_ROLES = ["seller", "rider"] as const;
 export type InviteRole = (typeof INVITE_ROLES)[number];
 
-const SKIP_INVITE_HOOK = "skipInviteHook";
-
 // Makes a fresh "set your password" link and emails it. The password itself is never
 // chosen, seen, or sent by the super-admin (CLAUDE.md §8).
 const sendInviteEmail = async (
@@ -39,8 +37,9 @@ const sendInviteEmail = async (
   await req.payload.sendEmail({ to: invite.email, subject, html });
 };
 
-const handleInvite: CollectionAfterChangeHook = async ({ doc, operation, req, context }) => {
-  if (context?.[SKIP_INVITE_HOOK]) return doc;
+// Note: the hook's own follow-up updates below never set resend=true, so they can't loop.
+// (Don't use req.context flags here: Payload shares that object across the whole request.)
+const handleInvite: CollectionAfterChangeHook = async ({ doc, operation, req }) => {
   const now = new Date().toISOString();
 
   if (operation === "create") {
@@ -78,7 +77,6 @@ const handleInvite: CollectionAfterChangeHook = async ({ doc, operation, req, co
       collection: "invites",
       id: doc.id,
       data: { user: user.id, status: "sent", sentAt: now },
-      context: { [SKIP_INVITE_HOOK]: true },
       overrideAccess: true,
       req,
     });
@@ -98,7 +96,6 @@ const handleInvite: CollectionAfterChangeHook = async ({ doc, operation, req, co
       collection: "invites",
       id: doc.id,
       data: { resend: false, sentAt: now },
-      context: { [SKIP_INVITE_HOOK]: true },
       overrideAccess: true,
       req,
     });

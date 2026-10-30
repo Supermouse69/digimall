@@ -12,10 +12,10 @@ type AuditEntry = {
 const clientIp = (req: PayloadRequest): string | undefined =>
   req.headers?.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers?.get("x-real-ip") || undefined;
 
-// Writes one audit entry. Never throws: a logging hiccup must not break the user's action,
-// but it is reported in the server log so it can be noticed.
-// Uses the same request (and database transaction) as the action, so if the action is
-// rolled back, its log entry is too — the log only records things that really happened.
+// Writes one audit entry in the same request (and database transaction) as the action:
+// - if the action is rolled back, its log entry is too (the log only records what really happened)
+// - if the log entry can't be written, the action fails too (fail closed: no unlogged
+//   sensitive actions). Payload would cancel the transaction anyway, so we say so loudly.
 export const writeAuditLog = async (req: PayloadRequest, entry: AuditEntry): Promise<void> => {
   try {
     await req.payload.create({
@@ -33,5 +33,6 @@ export const writeAuditLog = async (req: PayloadRequest, entry: AuditEntry): Pro
     });
   } catch (error) {
     req.payload.logger.error({ msg: "audit log write failed", action: entry.action, error });
+    throw new Error("Could not record this action in the audit log, so it was not completed.");
   }
 };

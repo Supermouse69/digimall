@@ -20,6 +20,7 @@ import { Invites } from "./collections/Invites";
 import { PrivateMedia } from "./collections/PrivateMedia";
 import { RiderProfiles } from "./collections/RiderProfiles";
 import { MAX_UPLOAD_BYTES } from "./lib/image-upload";
+import { devConsoleEmailAdapter } from "./modules/email/dev-console-adapter";
 import { Settings } from "./globals/Settings";
 
 const filename = fileURLToPath(import.meta.url)
@@ -60,6 +61,9 @@ export default buildConfig({
   },
   globals: [Settings],
   editor: lexicalEditor(),
+  // Dev: print emails (with links) to the terminal. Production: a real email service is added
+  // before launch (Resend) — until then Payload refuses to pretend it sent anything.
+  email: process.env.NODE_ENV === "production" ? undefined : devConsoleEmailAdapter,
   // Not used (the app uses tRPC + REST); off to shrink the attack surface
   graphQL: {
     disable: true,
