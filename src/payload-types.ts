@@ -179,6 +179,23 @@ export interface User {
         id?: string | null;
       }[]
     | null;
+  twoFactor?: {
+    enabled?: boolean | null;
+    secret?: string | null;
+    pendingSecret?: string | null;
+    backupCodeHashes?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+    lastUsedStep?: number | null;
+    failedAttempts?: number | null;
+    lockedUntil?: string | null;
+  };
   verificationSentAt?: string | null;
   ageConfirmedAt?: string | null;
   updatedAt: string;
@@ -392,7 +409,16 @@ export interface LegalPage {
  */
 export interface AuditLog {
   id: string;
-  action: 'private_file.viewed' | 'invite.sent' | 'invite.accepted' | 'rider.status_changed' | 'user.role_changed';
+  action:
+    | 'private_file.viewed'
+    | 'invite.sent'
+    | 'invite.accepted'
+    | 'rider.status_changed'
+    | 'user.role_changed'
+    | 'admin.login'
+    | 'admin.login_failed'
+    | 'admin.2fa_enabled'
+    | 'admin.2fa_reset';
   actor?: (string | null) | User;
   targetCollection?: string | null;
   targetId?: string | null;
@@ -548,6 +574,17 @@ export interface UsersSelect<T extends boolean = true> {
         version?: T;
         acceptedAt?: T;
         id?: T;
+      };
+  twoFactor?:
+    | T
+    | {
+        enabled?: T;
+        secret?: T;
+        pendingSecret?: T;
+        backupCodeHashes?: T;
+        lastUsedStep?: T;
+        failedAttempts?: T;
+        lockedUntil?: T;
       };
   verificationSentAt?: T;
   ageConfirmedAt?: T;

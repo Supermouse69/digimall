@@ -83,3 +83,17 @@ export const inviteTemplate = ({
     footer: `This link works for ${INVITE_LINK_DAYS} days. We will never ask for your password by chat or text. If you weren't expecting this, ignore this email.`,
   }),
 });
+
+// Sent when someone asks to reset a super-admin password: resets are off for admin accounts
+// (they would get around 2-step login). No link inside.
+export const adminResetDisabledTemplate = () => ({
+  subject: "DigiMall password reset request",
+  html: layout({
+    heading: "Password resets are turned off for this account",
+    intro:
+      "Someone asked to reset the password of this DigiMall admin account. For safety, admin passwords can't be reset by email. If it was you: log in with a backup code, or run the recovery script on your computer (bun run admin:reset-2fa).",
+    buttonLabel: "Go to DigiMall",
+    url: appUrl("/"),
+    footer: "If it wasn't you, someone may know your email. Your password was NOT changed.",
+  }),
+});

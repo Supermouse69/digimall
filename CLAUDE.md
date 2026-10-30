@@ -125,8 +125,9 @@ src/
   payload.config.ts   Payload config (@payload-config alias)
   payload-types.ts    generated — run `bun run generate:types`, don't edit by hand
   seed.ts             dev seed script (writes to the DB — ask first)
-scripts/              checks: `bun run test:access | test:redirects | test:signup | test:emails`
-                      DB checks (real dev DB, inside cancelled transactions): `test:invites | test:rider-docs`
+scripts/              checks: `bun run test:access | test:redirects | test:signup | test:emails | test:2fa`
+                      DB checks (real dev DB, inside cancelled transactions): `test:invites | test:rider-docs | test:admin-login`
+                      `admin:reset-2fa <email> [--new-password]` emergency 2FA reset (writes to the DB)
                       `seed:mock` adds/removes [MOCK] products (writes to the DB)
 public/               static files
 suggestions/          critical suggestions for the developer (§4)

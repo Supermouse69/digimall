@@ -1,11 +1,11 @@
-import type { CollectionConfig, PayloadRequest } from 'payload'
+import { AuthenticationError, type CollectionConfig, type PayloadRequest } from 'payload'
 import { tenantsArrayField } from "@payloadcms/plugin-multi-tenant/fields";
 
 import { LEGAL_PAGE_SLUGS } from "@/collections/LegalPages";
 import { fromPoint, isValidLatLng } from "@/lib/geo";
 import { isPhMobile, normalizePhMobile, PH_MOBILE_HINT } from "@/lib/ph-phone";
 import { getSettings, isInServiceArea } from "@/modules/settings/server/settings";
-import { resetPasswordTemplate, verifyEmailTemplate } from "@/modules/email/templates";
+import { adminResetDisabledTemplate, resetPasswordTemplate, verifyEmailTemplate } from "@/modules/email/templates";
 import { ownPrivateFile } from "@/lib/private-files";
 import { writeAuditLog } from "@/modules/audit/server/audit-log";
 
@@ -64,12 +64,31 @@ export const Users: CollectionConfig = {
     },
     forgotPassword: {
       expiration: 60 * 60 * 1000, // 1 hour
-      generateEmailSubject: () => resetPasswordTemplate({ token: "" }).subject,
+      // Super-admins can't reset by email (it would get around 2FA, and the reset is refused anyway).
+      // They get a "resets are off" email instead; the web response looks the same for everyone.
+      generateEmailSubject: (args) =>
+        args?.user?.role === "super-admin"
+          ? adminResetDisabledTemplate().subject
+          : resetPasswordTemplate({ token: "" }).subject,
       generateEmailHTML: (args) =>
-        resetPasswordTemplate({ name: args?.user?.name, token: args?.token ?? "" }).html,
+        args?.user?.role === "super-admin"
+          ? adminResetDisabledTemplate().html
+          : resetPasswordTemplate({ name: args?.user?.name, token: args?.token ?? "" }).html,
     },
   },
   hooks: {
+    // Super-admins can ONLY log in through the hidden entry page with 2FA (it sets this flag).
+    // This covers /login, Payload's own /admin/login, the REST API AND password reset links
+    // (Payload runs this hook on reset too, and a refusal undoes the whole reset).
+    // Same generic error, so nobody learns which emails are admin accounts.
+    beforeLogin: [
+      ({ user, context }) => {
+        if ((user as { role?: string })?.role === "super-admin" && !context?.adminEntry) {
+          throw new AuthenticationError();
+        }
+        return user;
+      },
+    ],
     afterChange: [
       async ({ doc, previousDoc, operation, req }) => {
         if (operation === "update" && previousDoc?.role && previousDoc.role !== doc.role) {
@@ -191,6 +210,28 @@ export const Users: CollectionConfig = {
         { name: "document", type: "select", required: true, options: [...LEGAL_PAGE_SLUGS] },
         { name: "version", type: "number", required: true },
         { name: "acceptedAt", type: "date", required: true },
+      ],
+    },
+    {
+      // Super-admin 2FA. Hidden from every API response and the admin panel; only server code
+      // (the hidden entry page) reads or writes it. The secret is encrypted at rest.
+      name: "twoFactor",
+      type: "group",
+      hidden: true,
+      access: {
+        read: () => false,
+        create: () => false,
+        update: () => false,
+      },
+      // Each field is hidden too (Payload doesn't hide a group's children from the group alone)
+      fields: [
+        { name: "enabled", type: "checkbox", defaultValue: false, hidden: true },
+        { name: "secret", type: "text", hidden: true },
+        { name: "pendingSecret", type: "text", hidden: true },
+        { name: "backupCodeHashes", type: "json", hidden: true },
+        { name: "lastUsedStep", type: "number", hidden: true },
+        { name: "failedAttempts", type: "number", defaultValue: 0, hidden: true },
+        { name: "lockedUntil", type: "date", hidden: true },
       ],
     },
     {

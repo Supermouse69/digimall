@@ -8,6 +8,10 @@ export const AUDIT_ACTIONS = [
   "invite.accepted",
   "rider.status_changed",
   "user.role_changed",
+  "admin.login",
+  "admin.login_failed",
+  "admin.2fa_enabled",
+  "admin.2fa_reset",
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
