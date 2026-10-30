@@ -6,6 +6,8 @@ import { fromPoint, isValidLatLng } from "@/lib/geo";
 import { isPhMobile, normalizePhMobile, PH_MOBILE_HINT } from "@/lib/ph-phone";
 import { getSettings, isInServiceArea } from "@/modules/settings/server/settings";
 import { resetPasswordTemplate, verifyEmailTemplate } from "@/modules/email/templates";
+import { ownPrivateFile } from "@/lib/private-files";
+import { writeAuditLog } from "@/modules/audit/server/audit-log";
 
 import {
   canUseAdminPanel,
@@ -66,6 +68,21 @@ export const Users: CollectionConfig = {
       generateEmailHTML: (args) =>
         resetPasswordTemplate({ name: args?.user?.name, token: args?.token ?? "" }).html,
     },
+  },
+  hooks: {
+    afterChange: [
+      async ({ doc, previousDoc, operation, req }) => {
+        if (operation === "update" && previousDoc?.role && previousDoc.role !== doc.role) {
+          await writeAuditLog(req, {
+            action: "user.role_changed",
+            targetCollection: "users",
+            targetId: doc.id,
+            details: { from: previousDoc.role, to: doc.role },
+          });
+        }
+        return doc;
+      },
+    ],
   },
   fields: [
     {
@@ -134,6 +151,14 @@ export const Users: CollectionConfig = {
           label: "Street / purok / house details",
           type: "text",
           maxLength: 200,
+        },
+        {
+          // Optional photo of the gate/landmark to help riders find the house. Private file.
+          name: "landmarkPhoto",
+          label: "Landmark photo (optional)",
+          type: "upload",
+          relationTo: "private-media",
+          validate: ownPrivateFile("landmark"),
         },
         {
           name: "location",

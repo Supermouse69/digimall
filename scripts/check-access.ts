@@ -127,6 +127,52 @@ const main = async () => {
   check("buyer: edit own age-confirmed time", await fieldAcc("users", "ageConfirmedAt", "update", attacker), false);
   check("admin: edit consents", await fieldAcc("users", "consents", "update", admin), true);
 
+  console.log("--- Private files (IDs, licenses, landmark photos) ---");
+  check("anonymous: read private files", await acc("private-media", "read", anon), false);
+  check("buyer: read private files (own only)", await acc("private-media", "read", attacker), "where", "u-attacker");
+  check("seller: read private files (own only)", await acc("private-media", "read", seller), "where", "u-seller");
+  check("rider: read private files (own only)", await acc("private-media", "read", rider), "where", "u-rider");
+  check("admin: read private files", await acc("private-media", "read", admin), true);
+  check("anonymous: upload private file", await acc("private-media", "create", anon), false);
+  check("rider: upload private file", await acc("private-media", "create", rider), true);
+  check("rider: edit a private file", await acc("private-media", "update", rider), false);
+  check("buyer: delete private files (own only)", await acc("private-media", "delete", attacker), "where", "u-attacker");
+  check("rider: change a file's owner", await fieldAcc("private-media", "owner", "update", rider), false);
+  check("admin: change a file's owner", await fieldAcc("private-media", "owner", "update", admin), false);
+  const privateUpload = col("private-media").upload as { mimeTypes?: string[]; staticDir?: string; withMetadata?: boolean };
+  check("private files: images only", JSON.stringify(privateUpload.mimeTypes), JSON.stringify(["image/jpeg", "image/png", "image/webp"]) as never);
+  check("private files: not stored in public folders", privateUpload.staticDir === "private-media", true);
+  check("private files: EXIF/GPS stripped", privateUpload.withMetadata === false, true);
+
+  console.log("--- Rider profiles ---");
+  check("anonymous: read rider profiles", await acc("rider-profiles", "read", anon), false);
+  check("rider: read rider profiles (own only)", await acc("rider-profiles", "read", rider), "where", "u-rider");
+  check("buyer: read rider profiles (own only = none)", await acc("rider-profiles", "read", attacker), "where", "u-attacker");
+  check("rider: create a rider profile", await acc("rider-profiles", "create", rider), false);
+  check("rider: approve themselves (status)", await fieldAcc("rider-profiles", "status", "update", rider), false);
+  check("rider: turn on Active before Phase 6", await fieldAcc("rider-profiles", "isActive", "update", rider), false);
+  check("rider: change which user a profile belongs to", await fieldAcc("rider-profiles", "user", "update", rider), false);
+  check("admin: approve riders", await fieldAcc("rider-profiles", "status", "update", admin), true);
+  check("rider: delete rider profile", await acc("rider-profiles", "delete", rider), false);
+
+  console.log("--- Invites ---");
+  for (const [who, user] of [["anonymous", anon], ["buyer", attacker], ["seller", seller], ["rider", rider]] as const) {
+    check(`${who}: read invites`, await acc("invites", "read", user), false);
+    check(`${who}: create invite`, await acc("invites", "create", user), false);
+  }
+  check("admin: create invite", await acc("invites", "create", admin), true);
+  check("admin: change invite email after sending", await fieldAcc("invites", "email", "update", admin), false);
+  check("admin: change invite role after sending", await fieldAcc("invites", "role", "update", admin), false);
+
+  console.log("--- Audit log (append-only) ---");
+  check("seller: read audit log", await acc("audit-logs", "read", seller), false);
+  check("admin: read audit log", await acc("audit-logs", "read", admin), true);
+  check("admin: create audit entry by hand", await acc("audit-logs", "create", admin), false);
+  check("admin: edit audit entry", await acc("audit-logs", "update", admin), false);
+  check("admin: delete audit entry", await acc("audit-logs", "delete", admin), false);
+  const publicUpload = col("media").upload as { withMetadata?: boolean; formatOptions?: { format?: string } };
+  check("public images: EXIF/GPS stripped + re-encoded", publicUpload.withMetadata === false && publicUpload.formatOptions?.format === "webp", true);
+
   console.log(failed === 0 ? "\nALL PASSED" : `\n${failed} FAILED`);
   process.exit(failed === 0 ? 0 : 1);
 };

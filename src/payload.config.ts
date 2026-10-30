@@ -15,6 +15,11 @@ import { Products } from "./collections/Products";
 import { Tags } from "./collections/Tags";
 import { Tenants } from "./collections/Tenants";
 import { LegalPages } from "./collections/LegalPages";
+import { AuditLogs } from "./collections/AuditLogs";
+import { Invites } from "./collections/Invites";
+import { PrivateMedia } from "./collections/PrivateMedia";
+import { RiderProfiles } from "./collections/RiderProfiles";
+import { MAX_UPLOAD_BYTES } from "./lib/image-upload";
 import { Settings } from "./globals/Settings";
 
 const filename = fileURLToPath(import.meta.url)
@@ -36,7 +41,23 @@ export default buildConfig({
       baseDir: path.resolve(dirname),
     },
   },
-  collections: [Users, Media, Categories, Products, Tags, Tenants, LegalPages],
+  collections: [
+    Users,
+    Invites,
+    RiderProfiles,
+    Media,
+    PrivateMedia,
+    Categories,
+    Products,
+    Tags,
+    Tenants,
+    LegalPages,
+    AuditLogs,
+  ],
+  // Max 5 MB per uploaded file (CLAUDE.md §10.8)
+  upload: {
+    limits: { fileSize: MAX_UPLOAD_BYTES },
+  },
   globals: [Settings],
   editor: lexicalEditor(),
   // Not used (the app uses tRPC + REST); off to shrink the attack surface

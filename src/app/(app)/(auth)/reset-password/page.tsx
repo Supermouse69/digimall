@@ -6,12 +6,12 @@ import { ResetPasswordView } from "@/modules/auth/ui/views/reset-password-view";
 export const dynamic = "force-dynamic";
 
 interface Props {
-  searchParams: Promise<{ token?: string | string[] }>;
+  searchParams: Promise<{ token?: string | string[]; invite?: string }>;
 }
 
 // Opened from the password reset email. The token is checked on the server when the form is sent.
 const Page = async ({ searchParams }: Props) => {
-  const { token } = await searchParams;
+  const { token, invite } = await searchParams;
 
   if (typeof token !== "string" || !/^[a-zA-Z0-9]{20,128}$/.test(token)) {
     return (
@@ -22,7 +22,7 @@ const Page = async ({ searchParams }: Props) => {
     );
   }
 
-  return <ResetPasswordView token={token} />;
+  return <ResetPasswordView token={token} invite={invite === "1"} />;
 };
 
 export default Page;

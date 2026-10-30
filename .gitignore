@@ -48,3 +48,6 @@ next-env.d.ts
 
 # Local database backups (contain personal data + password hashes)
 /backups
+
+# Private uploads (IDs, licenses, landmark photos) - never commit
+/private-media

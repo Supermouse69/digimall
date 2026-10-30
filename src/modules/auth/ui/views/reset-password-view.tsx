@@ -24,7 +24,8 @@ import {
 import { resetPasswordSchema } from "../../schemas";
 import { AuthCard } from "../components/auth-card";
 
-export const ResetPasswordView = ({ token }: { token: string }) => {
+// Also used for invites (sellers/riders choose their first password here)
+export const ResetPasswordView = ({ token, invite = false }: { token: string; invite?: boolean }) => {
   const trpc = useTRPC();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -48,7 +49,7 @@ export const ResetPasswordView = ({ token }: { token: string }) => {
   });
 
   return (
-    <AuthCard title="Choose a new password">
+    <AuthCard title={invite ? "Welcome! Set your password" : "Choose a new password"}>
       <Form {...form}>
         <form onSubmit={form.handleSubmit((values) => reset.mutate(values))} className="flex flex-col gap-4">
           <FormField
@@ -81,7 +82,7 @@ export const ResetPasswordView = ({ token }: { token: string }) => {
           </Button>
         </form>
       </Form>
-      <Link href="/forgot-password" className="underline text-sm w-fit">Need a new link?</Link>
+      {!invite && <Link href="/forgot-password" className="underline text-sm w-fit">Need a new link?</Link>}
     </AuthCard>
   );
 };

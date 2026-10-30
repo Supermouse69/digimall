@@ -1,6 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
 import { anyone, superAdminOnly, superAdminOrStoreMember } from "@/lib/access";
+import { imageUploadConfig, randomizeUploadFilename } from "@/lib/image-upload";
 
 export const Media: CollectionConfig = {
   slug: 'media',
@@ -11,6 +12,9 @@ export const Media: CollectionConfig = {
     update: superAdminOnly,
     delete: superAdminOnly,
   },
+  hooks: {
+    beforeOperation: [randomizeUploadFilename],
+  },
   fields: [
     {
       name: 'alt',
@@ -18,8 +22,8 @@ export const Media: CollectionConfig = {
       required: true,
     },
   ],
+  // Public images (products, store logos). Images only — blocks SVG/HTML that could run scripts.
   upload: {
-    // Images only. Blocks SVG/HTML uploads, which could run scripts on our domain.
-    mimeTypes: ['image/jpeg', 'image/png', 'image/webp'],
+    ...imageUploadConfig,
   },
 }

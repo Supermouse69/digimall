@@ -68,12 +68,16 @@ export interface Config {
   blocks: {};
   collections: {
     users: User;
+    invites: Invite;
+    'rider-profiles': RiderProfile;
     media: Media;
+    'private-media': PrivateMedia;
     categories: Category;
     products: Product;
     tags: Tag;
     tenants: Tenant;
     'legal-pages': LegalPage;
+    'audit-logs': AuditLog;
     'payload-kv': PayloadKv;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
@@ -86,12 +90,16 @@ export interface Config {
   };
   collectionsSelect: {
     users: UsersSelect<false> | UsersSelect<true>;
+    invites: InvitesSelect<false> | InvitesSelect<true>;
+    'rider-profiles': RiderProfilesSelect<false> | RiderProfilesSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
+    'private-media': PrivateMediaSelect<false> | PrivateMediaSelect<true>;
     categories: CategoriesSelect<false> | CategoriesSelect<true>;
     products: ProductsSelect<false> | ProductsSelect<true>;
     tags: TagsSelect<false> | TagsSelect<true>;
     tenants: TenantsSelect<false> | TenantsSelect<true>;
     'legal-pages': LegalPagesSelect<false> | LegalPagesSelect<true>;
+    'audit-logs': AuditLogsSelect<false> | AuditLogsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
@@ -156,6 +164,7 @@ export interface User {
   buyerProfile?: {
     barangay?: string | null;
     addressDetails?: string | null;
+    landmarkPhoto?: (string | null) | PrivateMedia;
     /**
      * @minItems 2
      * @maxItems 2
@@ -230,6 +239,72 @@ export interface Media {
   height?: number | null;
   focalX?: number | null;
   focalY?: number | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "private-media".
+ */
+export interface PrivateMedia {
+  id: string;
+  owner?: (string | null) | User;
+  purpose: 'rider-photo' | 'rider-license' | 'rider-franchise' | 'landmark';
+  updatedAt: string;
+  createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
+}
+/**
+ * Invite a seller or rider. Create the seller's store first (Tenants), then pick it here. They get an email to set their own password.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "invites".
+ */
+export interface Invite {
+  id: string;
+  email: string;
+  name: string;
+  role: 'seller' | 'rider';
+  /**
+   * The store this seller will manage.
+   */
+  store?: (string | null) | Tenant;
+  /**
+   * Tick and save to email a fresh link (the old link stops working).
+   */
+  resend?: boolean | null;
+  status?: ('pending' | 'sent' | 'accepted') | null;
+  user?: (string | null) | User;
+  sentAt?: string | null;
+  acceptedAt?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "rider-profiles".
+ */
+export interface RiderProfile {
+  id: string;
+  user: string | User;
+  displayName: string;
+  /**
+   * Approve only after checking the license and MTOP documents.
+   */
+  status: 'pending' | 'approved' | 'suspended';
+  photo?: (string | null) | PrivateMedia;
+  licenseDocument?: (string | null) | PrivateMedia;
+  franchiseDocument?: (string | null) | PrivateMedia;
+  todaName?: string | null;
+  isActive?: boolean | null;
+  updatedAt: string;
+  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -313,6 +388,29 @@ export interface LegalPage {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "audit-logs".
+ */
+export interface AuditLog {
+  id: string;
+  action: 'private_file.viewed' | 'invite.sent' | 'invite.accepted' | 'rider.status_changed' | 'user.role_changed';
+  actor?: (string | null) | User;
+  targetCollection?: string | null;
+  targetId?: string | null;
+  details?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  ip?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv".
  */
 export interface PayloadKv {
@@ -340,8 +438,20 @@ export interface PayloadLockedDocument {
         value: string | User;
       } | null)
     | ({
+        relationTo: 'invites';
+        value: string | Invite;
+      } | null)
+    | ({
+        relationTo: 'rider-profiles';
+        value: string | RiderProfile;
+      } | null)
+    | ({
         relationTo: 'media';
         value: string | Media;
+      } | null)
+    | ({
+        relationTo: 'private-media';
+        value: string | PrivateMedia;
       } | null)
     | ({
         relationTo: 'categories';
@@ -362,6 +472,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'legal-pages';
         value: string | LegalPage;
+      } | null)
+    | ({
+        relationTo: 'audit-logs';
+        value: string | AuditLog;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -424,6 +538,7 @@ export interface UsersSelect<T extends boolean = true> {
     | {
         barangay?: T;
         addressDetails?: T;
+        landmarkPhoto?: T;
         location?: T;
       };
   consents?:
@@ -458,10 +573,62 @@ export interface UsersSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "invites_select".
+ */
+export interface InvitesSelect<T extends boolean = true> {
+  email?: T;
+  name?: T;
+  role?: T;
+  store?: T;
+  resend?: T;
+  status?: T;
+  user?: T;
+  sentAt?: T;
+  acceptedAt?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "rider-profiles_select".
+ */
+export interface RiderProfilesSelect<T extends boolean = true> {
+  user?: T;
+  displayName?: T;
+  status?: T;
+  photo?: T;
+  licenseDocument?: T;
+  franchiseDocument?: T;
+  todaName?: T;
+  isActive?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "media_select".
  */
 export interface MediaSelect<T extends boolean = true> {
   alt?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "private-media_select".
+ */
+export interface PrivateMediaSelect<T extends boolean = true> {
+  owner?: T;
+  purpose?: T;
   updatedAt?: T;
   createdAt?: T;
   url?: T;
@@ -534,6 +701,20 @@ export interface LegalPagesSelect<T extends boolean = true> {
   content?: T;
   version?: T;
   publishedAt?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "audit-logs_select".
+ */
+export interface AuditLogsSelect<T extends boolean = true> {
+  action?: T;
+  actor?: T;
+  targetCollection?: T;
+  targetId?: T;
+  details?: T;
+  ip?: T;
   updatedAt?: T;
   createdAt?: T;
 }

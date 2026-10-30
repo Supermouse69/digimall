@@ -1,7 +1,7 @@
 import { randomBytes } from "crypto";
 import { TRPCError } from "@trpc/server";
 import { headers as getHeaders } from "next/headers";
-import { UnverifiedEmail } from "payload";
+import { UnverifiedEmail, type Payload } from "payload";
 
 import { baseProcedure, createTRPCRouter, protectedProcedure } from "@/trpc/init";
 import { getUserTenantIds } from "@/lib/access";
@@ -29,6 +29,19 @@ import {
 } from "../schemas";
 
 const RESEND_VERIFICATION_COOLDOWN_MS = 60 * 1000;
+
+// Where to go right after logging in: the role's home, but /consent first if the user
+// hasn't agreed to the current Terms/Privacy for their role (sellers and riders included).
+const redirectAfterLogin = async (
+  payload: Payload,
+  user: Pick<User, "role" | "consents"> | undefined,
+  next?: string | null,
+): Promise<string> => {
+  const home = homeForRole(user?.role, next);
+  if (!user) return home;
+  const documents = await getLegalDocuments(payload, REQUIRED_DOCUMENTS[user.role]);
+  return needsConsent(user, documents) ? `/consent?next=${encodeURIComponent(home)}` : home;
+};
 
 // What the browser is allowed to know about the logged-in user. Never send the whole user document.
 export type SessionUser = {
@@ -209,14 +222,41 @@ export const authRouter = createTRPCRouter({
       }
 
       await generateAuthCookie({ prefix: ctx.db.config.cookiePrefix, value: token });
-      return { redirectTo: homeForRole(user?.role) };
+
+      // Setting a password from an invite = invite accepted
+      if (user) {
+        const { docs: invites } = await ctx.db.find({
+          collection: "invites",
+          where: { and: [{ user: { equals: user.id } }, { status: { equals: "sent" } }] },
+          limit: 1,
+          depth: 0,
+          overrideAccess: true,
+        });
+        const invite = invites[0];
+        if (invite) {
+          await ctx.db.update({
+            collection: "invites",
+            id: invite.id,
+            data: { status: "accepted", acceptedAt: new Date().toISOString() },
+            context: { skipInviteHook: true },
+            overrideAccess: true,
+          });
+          await ctx.db.create({
+            collection: "audit-logs",
+            overrideAccess: true,
+            data: { action: "invite.accepted", actor: user.id, targetCollection: "users", targetId: user.id },
+          });
+        }
+      }
+
+      return { redirectTo: await redirectAfterLogin(ctx.db, user) };
     }),
 
   login: baseProcedure
     .input(loginSchema)
     .mutation(async ({ input, ctx }) => {
       let token: string | undefined;
-      let role: UserRole | undefined;
+      let loggedInUser: User | undefined;
       try {
         const data = await ctx.db.login({
           collection: "users",
@@ -226,7 +266,7 @@ export const authRouter = createTRPCRouter({
           },
         });
         token = data.token;
-        role = (data.user as User | undefined)?.role;
+        loggedInUser = data.user as unknown as User | undefined;
       } catch (error) {
         // Payload only says "unverified" AFTER the password was correct, so this reveals nothing
         // to someone guessing emails.
@@ -254,7 +294,7 @@ export const authRouter = createTRPCRouter({
 
       // The token lives only in the HttpOnly cookie; never send it to page JavaScript.
       // The redirect is only for convenience — every page still checks access on the server.
-      return { redirectTo: homeForRole(role, input.next) };
+      return { redirectTo: await redirectAfterLogin(ctx.db, loggedInUser, input.next) };
     }),
 
   // Re-consent after the super-admin publishes a new Terms/Privacy version

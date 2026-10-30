@@ -57,3 +57,29 @@ export const resetPasswordTemplate = ({ name, token }: { name?: unknown; token: 
     footer: "If you didn't ask for this, ignore this email. Your password stays the same.",
   }),
 });
+
+export const INVITE_LINK_DAYS = 7;
+
+export const inviteTemplate = ({
+  name,
+  role,
+  storeName,
+  token,
+}: {
+  name?: unknown;
+  role: "seller" | "rider";
+  storeName?: string | null;
+  token: string;
+}) => ({
+  subject: role === "seller" ? "Your DigiMall store is ready" : "You're invited to ride with DigiMall",
+  html: layout({
+    heading: `Hi ${firstName(name)}, welcome to DigiMall!`,
+    intro:
+      role === "seller"
+        ? `We set up ${storeName ? `"${storeName}"` : "your store"} on DigiMall. Choose your own password to log in and start adding products.`
+        : "We set up your rider account on DigiMall. Choose your own password, then upload your driver's license and tricycle franchise (MTOP) so we can approve you.",
+    buttonLabel: "Set my password",
+    url: appUrl(`/reset-password?token=${encodeURIComponent(token)}&invite=1`),
+    footer: `This link works for ${INVITE_LINK_DAYS} days. We will never ask for your password by chat or text. If you weren't expecting this, ignore this email.`,
+  }),
+});
