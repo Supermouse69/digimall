@@ -121,11 +121,12 @@ src/
   lib/private-files.ts "you can only attach your own private file" check
   lib/utils.ts        cn(), formatCurrency(), URL helpers
   modules/<feature>/  feature code: server/ (tRPC procedures), ui/ (views, components), hooks, schemas
+  modules/bot-protection/ Turnstile check + rate limits (MongoDB counters) for public forms and Payload login
   trpc/               tRPC setup (init, client, server caller, root router)
   payload.config.ts   Payload config (@payload-config alias)
   payload-types.ts    generated — run `bun run generate:types`, don't edit by hand
   seed.ts             dev seed script (writes to the DB — ask first)
-scripts/              checks: `bun run test:access | test:redirects | test:signup | test:emails | test:2fa`
+scripts/              checks: `bun run test:access | test:redirects | test:signup | test:emails | test:2fa | test:bot-protection`
                       DB checks (real dev DB, inside cancelled transactions): `test:invites | test:rider-docs | test:admin-login`
                       `admin:reset-2fa <email> [--new-password]` emergency 2FA reset (writes to the DB)
                       `seed:mock` adds/removes [MOCK] products (writes to the DB)
@@ -151,8 +152,8 @@ Path aliases: `@/*` → `src/*`, `@payload-config` → `src/payload.config.ts`. 
 | Vercel | Hosting, Blob storage, cron | Have / set up | `BLOB_READ_WRITE_TOKEN` (public store) + private store access (token or OIDC — check Vercel docs) |
 | Email (e.g., Resend + `@payloadcms/email-resend`) | Invites, verification, password reset | Need | `RESEND_API_KEY`, `EMAIL_FROM` |
 | Google Cloud OAuth | "Sign in with Google" for buyers | Need | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` |
-| Cloudflare Turnstile | Bot protection on auth forms | Need (free) | `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` |
-| Upstash Redis (or similar) | Rate limiting on serverless | Propose | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` |
+| Cloudflare Turnstile | Bot protection on auth forms | In code (dev uses Cloudflare test keys); **real keys needed before deploy** (free) | `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` |
+| Rate-limit counters | Rate limiting on serverless | **Decided 2026-10-31: MongoDB** (`rate_limits` collection, auto-expiring, hashed keys) in `modules/bot-protection`. Upstash Redis stays the upgrade path. | — (Upstash later: `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`) |
 | Web Push (VAPID) | Push notifications | Generate keys locally | `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` |
 | OpenStreetMap tiles | Maps | No account needed | — |
 | Cron protection | Secures scheduled endpoints | — | `CRON_SECRET` |

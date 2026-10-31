@@ -8,6 +8,8 @@ import { getSettings, isInServiceArea } from "@/modules/settings/server/settings
 import { adminResetDisabledTemplate, resetPasswordTemplate, verifyEmailTemplate } from "@/modules/email/templates";
 import { ownPrivateFile } from "@/lib/private-files";
 import { writeAuditLog } from "@/modules/audit/server/audit-log";
+import { clientIp } from "@/modules/bot-protection/server/client-ip";
+import { enforceApiRateLimit, RATE_LIMITS } from "@/modules/bot-protection/server/rate-limit";
 
 import {
   canUseAdminPanel,
@@ -77,6 +79,24 @@ export const Users: CollectionConfig = {
     },
   },
   hooks: {
+    // Rate limits for Payload's own REST endpoints (/api/users/login, /api/users/forgot-password),
+    // which /admin/login uses. Without this a bot could skip our forms and hit the API directly.
+    // Our own forms call Payload's local API (payloadAPI "local") and are limited in tRPC instead.
+    beforeOperation: [
+      async ({ args, operation, req }) => {
+        if (req.payloadAPI !== "REST") return args;
+        const ip = clientIp(req.headers);
+        if (operation === "login") {
+          await enforceApiRateLimit(req.payload, RATE_LIMITS.login, ip);
+        }
+        if (operation === "forgotPassword") {
+          await enforceApiRateLimit(req.payload, RATE_LIMITS.forgotPasswordIp, ip);
+          const email = (args as { data?: { email?: unknown } }).data?.email;
+          if (typeof email === "string") await enforceApiRateLimit(req.payload, RATE_LIMITS.forgotPasswordEmail, email);
+        }
+        return args;
+      },
+    ],
     // Super-admins can ONLY log in through the hidden entry page with 2FA (it sets this flag).
     // This covers /login, Payload's own /admin/login, the REST API AND password reset links
     // (Payload runs this hook on reset too, and a refusal undoes the whole reset).

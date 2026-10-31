@@ -7,6 +7,9 @@ import { baseProcedure, createTRPCRouter } from "@/trpc/init";
 import type { AuditAction } from "@/collections/AuditLogs";
 import type { User } from "@/payload-types";
 import { generateAuthCookie } from "@/modules/auth/utils";
+import { clientIp } from "@/modules/bot-protection/server/client-ip";
+import { guardPublicForm, guardRateLimit, humanCheckInput } from "@/modules/bot-protection/server/guard";
+import { RATE_LIMITS } from "@/modules/bot-protection/server/rate-limit";
 
 import {
   checkTotp,
@@ -75,7 +78,7 @@ const audit = async (payload: Payload, action: AuditAction, actorId?: string, de
       targetCollection: "users",
       targetId: actorId,
       details,
-      ip: headers.get("x-forwarded-for")?.split(",")[0]?.trim() || headers.get("x-real-ip") || undefined,
+      ip: clientIp(headers),
     },
   });
 };
@@ -111,9 +114,10 @@ const passwordLogin = async (payload: Payload, email: string, password: string) 
 export const adminEntryRouter = createTRPCRouter({
   // Step 1 (every login). If 2FA isn't set up yet, returns the QR code to set it up instead.
   login: baseProcedure
-    .input(z.object({ ...credentials, code: z.string().max(20).optional() }))
+    .input(z.object({ ...credentials, ...humanCheckInput, code: z.string().max(20).optional() }))
     .mutation(async ({ ctx, input }) => {
       if (!isValidEntryKey(input.key)) throw notFound();
+      await guardPublicForm(ctx.db, { turnstileToken: input.turnstileToken, limits: [{ rule: RATE_LIMITS.adminLogin }] });
 
       const user = await findUserByEmail(ctx.db, input.email);
       if (!user || user.role !== "super-admin") throw failed();
@@ -176,6 +180,8 @@ export const adminEntryRouter = createTRPCRouter({
     .input(z.object({ ...credentials, ticket: z.string().min(10).max(500), code: z.string().max(20) }))
     .mutation(async ({ ctx, input }) => {
       if (!isValidEntryKey(input.key)) throw notFound();
+      // No robot check here: this step needs the signed ticket from step 1, which already had one
+      await guardRateLimit(ctx.db, RATE_LIMITS.adminLogin);
 
       const user = await findUserByEmail(ctx.db, input.email);
       const ticketUser = readSetupTicket(input.ticket);

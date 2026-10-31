@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { useTRPC } from "@/trpc/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { TurnstileWidget, useTurnstile } from "@/modules/bot-protection/ui/turnstile-widget";
 
 type Step =
   | { name: "login" }
@@ -39,7 +40,9 @@ export const AdminEntryView = ({ entryKey }: { entryKey: string }) => {
 
   const goToAdmin = (redirectTo: string) => window.location.assign(redirectTo);
 
+  const turnstile = useTurnstile();
   const login = useMutation(trpc.adminEntry.login.mutationOptions({
+    onSettled: () => turnstile.reset(),
     onError: (error) => toast.error(error.message),
     onSuccess: (result) => {
       setCode("");
@@ -136,7 +139,7 @@ export const AdminEntryView = ({ entryKey }: { entryKey: string }) => {
         className="flex flex-col gap-3"
         onSubmit={(event) => {
           event.preventDefault();
-          login.mutate({ key: entryKey, email, password, code: code || undefined });
+          login.mutate({ key: entryKey, email, password, code: code || undefined, turnstileToken: turnstile.token });
         }}
       >
         <Field label="Email">
@@ -149,7 +152,8 @@ export const AdminEntryView = ({ entryKey }: { entryKey: string }) => {
           <Input value={code} onChange={(event) => setCode(event.target.value)} autoComplete="one-time-code" maxLength={11} />
         </Field>
         <p className="text-xs text-neutral-600">First time here? Leave the code empty — you&apos;ll set it up next.</p>
-        <Button type="submit" size="lg" disabled={login.isPending}>
+        <TurnstileWidget {...turnstile.widgetProps} />
+        <Button type="submit" size="lg" disabled={login.isPending || !turnstile.token}>
           {login.isPending ? "Checking..." : "Sign in"}
         </Button>
       </form>

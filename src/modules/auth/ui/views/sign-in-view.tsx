@@ -11,6 +11,7 @@ import z from "zod";
 
 import { cn } from "@/lib/utils";
 import { useTRPC } from "@/trpc/client";
+import { TurnstileWidget, useTurnstile } from "@/modules/bot-protection/ui/turnstile-widget";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -46,7 +47,9 @@ export const SignInView = ({ next, notice }: Props) => {
   const queryClient = useQueryClient();
   const router = useRouter();
   const trpc = useTRPC();
+  const turnstile = useTurnstile();
   const login = useMutation(trpc.auth.login.mutationOptions({
+    onSettled: () => turnstile.reset(),
     onError: (error, variables) => {
       if (error.data?.code === "FORBIDDEN") {
         setUnverifiedEmail(variables.email);
@@ -77,7 +80,7 @@ export const SignInView = ({ next, notice }: Props) => {
   });
 
   const onSubmit = (values: z.infer<typeof loginSchema>) => {
-    login.mutate({ ...values, next });
+    login.mutate({ ...values, next, turnstileToken: turnstile.token });
   };
 
   const signUpHref = next ? `/sign-up?next=${encodeURIComponent(next)}` : "/sign-up";
@@ -141,8 +144,9 @@ export const SignInView = ({ next, notice }: Props) => {
                 </FormItem>
               )}
             />
+            <TurnstileWidget {...turnstile.widgetProps} />
             <Button
-              disabled={login.isPending}
+              disabled={login.isPending || !turnstile.token}
               type="submit"
               size="lg"
               variant="elevated"

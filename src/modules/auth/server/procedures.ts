@@ -16,6 +16,8 @@ import {
 } from "@/modules/legal/server/consents";
 import { getSettings, isInServiceArea } from "@/modules/settings/server/settings";
 import { verifyEmailTemplate } from "@/modules/email/templates";
+import { guardPublicForm, humanCheckInput } from "@/modules/bot-protection/server/guard";
+import { RATE_LIMITS } from "@/modules/bot-protection/server/rate-limit";
 
 import { generateAuthCookie } from "../utils";
 import { homeForRole, type UserRole } from "../roles";
@@ -86,8 +88,10 @@ export const authRouter = createTRPCRouter({
   }),
 
   register: baseProcedure
-    .input(registerSchema)
+    .input(registerSchema.extend(humanCheckInput))
     .mutation(async ({ input, ctx }) => {
+      await guardPublicForm(ctx.db, { turnstileToken: input.turnstileToken, limits: [{ rule: RATE_LIMITS.signup }] });
+
       // Public sign-up is for buyers only. Sellers and riders are created by the super-admin.
       const settings = await getSettings(ctx.db);
       if (!settings.barangays.includes(input.barangay)) {
@@ -154,8 +158,13 @@ export const authRouter = createTRPCRouter({
 
   // Same answer whether or not the email has an account, so nobody can check who's registered.
   resendVerification: baseProcedure
-    .input(emailOnlySchema)
+    .input(emailOnlySchema.extend(humanCheckInput))
     .mutation(async ({ input, ctx }) => {
+      await guardPublicForm(ctx.db, {
+        turnstileToken: input.turnstileToken,
+        limits: [{ rule: RATE_LIMITS.resendVerificationIp }],
+      });
+
       const { docs } = await ctx.db.find({
         collection: "users",
         where: { email: { equals: input.email.toLowerCase() } },
@@ -183,10 +192,15 @@ export const authRouter = createTRPCRouter({
       return { success: true as const };
     }),
 
-  // Same answer whether or not the email has an account. Payload also limits repeat requests.
+  // Same answer whether or not the email has an account (the limits are per IP AND per email).
   forgotPassword: baseProcedure
-    .input(emailOnlySchema)
+    .input(emailOnlySchema.extend(humanCheckInput))
     .mutation(async ({ input, ctx }) => {
+      await guardPublicForm(ctx.db, {
+        turnstileToken: input.turnstileToken,
+        limits: [{ rule: RATE_LIMITS.forgotPasswordIp }, { rule: RATE_LIMITS.forgotPasswordEmail, key: input.email }],
+      });
+
       try {
         await ctx.db.forgotPassword({ collection: "users", data: { email: input.email } });
       } catch {
@@ -252,8 +266,10 @@ export const authRouter = createTRPCRouter({
     }),
 
   login: baseProcedure
-    .input(loginSchema)
+    .input(loginSchema.extend(humanCheckInput))
     .mutation(async ({ input, ctx }) => {
+      await guardPublicForm(ctx.db, { turnstileToken: input.turnstileToken, limits: [{ rule: RATE_LIMITS.login }] });
+
       let token: string | undefined;
       let loggedInUser: User | undefined;
       try {

@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import z from "zod";
 
 import { useTRPC } from "@/trpc/client";
+import { TurnstileWidget, useTurnstile } from "@/modules/bot-protection/ui/turnstile-widget";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -19,9 +20,12 @@ import { AuthCard } from "../components/auth-card";
 export const ForgotPasswordView = () => {
   const trpc = useTRPC();
   const [sent, setSent] = useState(false);
+  const turnstile = useTurnstile();
   const forgot = useMutation(trpc.auth.forgotPassword.mutationOptions({
+    onSettled: () => turnstile.reset(),
     onSuccess: () => setSent(true),
-    onError: () => toast.error("Something went wrong. Please try again."),
+    onError: (error) =>
+      toast.error(error.data?.code === "INTERNAL_SERVER_ERROR" ? "Something went wrong. Please try again." : error.message),
   }));
   const form = useForm<z.infer<typeof emailOnlySchema>>({
     resolver: zodResolver(emailOnlySchema),
@@ -42,7 +46,7 @@ export const ForgotPasswordView = () => {
     <AuthCard title="Forgot your password?">
       <p>Enter your email and we&apos;ll send you a link to choose a new password.</p>
       <Form {...form}>
-        <form onSubmit={form.handleSubmit((values) => forgot.mutate(values))} className="flex flex-col gap-4">
+        <form onSubmit={form.handleSubmit((values) => forgot.mutate({ ...values, turnstileToken: turnstile.token }))} className="flex flex-col gap-4">
           <FormField
             name="email"
             render={({ field }) => (
@@ -55,7 +59,8 @@ export const ForgotPasswordView = () => {
               </FormItem>
             )}
           />
-          <Button type="submit" size="lg" disabled={forgot.isPending} className="bg-black text-white">
+          <TurnstileWidget {...turnstile.widgetProps} />
+          <Button type="submit" size="lg" disabled={forgot.isPending || !turnstile.token} className="bg-black text-white">
             {forgot.isPending ? "Sending..." : "Send reset link"}
           </Button>
         </form>

@@ -1,0 +1,63 @@
+Title: Bot protection and rate limits (Phase 2f)
+Date: 2026-10-31
+Priority: High
+Status: APPROVED + BUILT 2026-10-31: Turnstile on all 5 forms, counters in MongoDB (option A). CSRF/CORS (point 3) postponed until deploy.
+Area: security / infra / cost
+
+What's the problem?
+Our sign-up, login, forgot-password and resend-email forms can be hit by bots as fast as they like.
+Payload already locks ONE account after 5 wrong passwords, but nothing stops:
+- one bot trying passwords on thousands of different emails
+- mass fake sign-ups
+- spamming "forgot password" / "resend email" to flood someone's inbox (and burn our email quota
+  once a real email service is connected)
+
+Why it matters (what could go wrong):
+Account takeovers, fake accounts, our email sender getting blocked as spam, higher costs.
+
+What I suggest:
+1. Cloudflare Turnstile ("I'm not a robot" check, usually invisible) on: sign-up, login,
+   forgot password, resend verification email, and the hidden admin login.
+   The server checks every Turnstile token with Cloudflare. A missing or bad token means the form is refused.
+   - Development uses Cloudflare's official TEST keys (always pass), so no account is needed yet.
+   - Before going live: create a free Turnstile widget in the Cloudflare dashboard for digimall.online.
+
+2. Rate limits (max tries per time window), per IP address, and per email where it makes sense.
+   Proposed starting numbers (easy to change, all in one file):
+   - login: 10 tries / 15 min per IP
+   - sign-up: 5 / hour per IP
+   - forgot password: 5 / hour per IP and 3 / hour per email
+   - resend verification: already 1 / minute per account; add 5 / hour per IP
+   - admin login: 5 / 15 min per IP (on top of the existing 2FA lock)
+   Later phases reuse the same helper for chat, checkout and rider requests.
+   They also cover Payload's own login endpoint (/api/users/login, used by /admin/login for sellers)
+   through a Payload hook. Otherwise a bot could skip our forms and go straight to the API.
+
+   Where the counters are stored (in-memory doesn't work on Vercel):
+   A) MongoDB (the database we already have). A small "rate-limits" collection whose old entries
+      delete themselves. Free, no new account, no new package. A bit slower than Redis, which is
+      fine for beta traffic.
+   B) Upstash Redis. Built for this and very fast, with a free tier. Needs a new account,
+      2 new env vars and 2 new packages (@upstash/ratelimit, @upstash/redis).
+   Either way it sits behind one module, so we can switch later without touching the forms.
+
+3. Payload CSRF + CORS limited to our own site (CLAUDE.md §10.4): only NEXT_PUBLIC_APP_URL
+   (+ localhost in development) may send logged-in requests to /api.
+
+Effort and cost: Free. About one work session. Turnstile is free. Option A costs nothing extra.
+Upstash has a free tier.
+
+Trade-offs / risks:
+- Turnstile loads a script from Cloudflare (challenges.cloudflare.com). Cloudflare sees the visitor's IP
+  for the check. Mention it in the Privacy Notice (you write that).
+- Strict limits can block real users who share one IP (same household Wi-Fi, or mobile data
+  carriers sharing IPs). The numbers above are generous for that reason.
+- CORS/CSRF misconfigured = Payload admin stops working. Easy to undo (one config change).
+
+Rollback: every piece is one commit. Remove the env vars / revert the commit to turn it off.
+
+What I need from you:
+- Yes/no to Turnstile on those 5 forms
+- A (MongoDB) or B (Upstash) for the counters
+- OK to add env vars NEXT_PUBLIC_TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY (test keys in dev)
+- OK to set Payload csrf/cors in payload.config.ts

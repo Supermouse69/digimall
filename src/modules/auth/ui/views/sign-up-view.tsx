@@ -12,6 +12,7 @@ import z from "zod";
 import { cn } from "@/lib/utils";
 import type { LatLng } from "@/lib/geo";
 import { useTRPC } from "@/trpc/client";
+import { TurnstileWidget, useTurnstile } from "@/modules/bot-protection/ui/turnstile-widget";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -64,7 +65,9 @@ export const SignUpView = ({ next, options }: Props) => {
   const trpc = useTRPC();
   // After sign-up we show "check your email" instead of logging in (email must be confirmed first)
   const [sentTo, setSentTo] = useState<string | null>(null);
+  const turnstile = useTurnstile();
   const register = useMutation(trpc.auth.register.mutationOptions({
+    onSettled: () => turnstile.reset(),
     onError: (error) => {
       toast.error(error.message);
     },
@@ -93,7 +96,7 @@ export const SignUpView = ({ next, options }: Props) => {
   });
 
   const onSubmit = (values: FormValues) => {
-    register.mutate({ ...(values as z.output<typeof registerSchema>), next });
+    register.mutate({ ...(values as z.output<typeof registerSchema>), next, turnstileToken: turnstile.token });
   };
 
   const loginHref = next ? `/login?next=${encodeURIComponent(next)}` : "/login";
@@ -316,8 +319,9 @@ export const SignUpView = ({ next, options }: Props) => {
               />
             </div>
 
+            <TurnstileWidget {...turnstile.widgetProps} />
             <Button
-              disabled={register.isPending}
+              disabled={register.isPending || !turnstile.token}
               type="submit"
               size="lg"
               variant="elevated"

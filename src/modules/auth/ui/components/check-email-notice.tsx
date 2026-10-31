@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import { useTRPC } from "@/trpc/client";
 import { Button } from "@/components/ui/button";
+import { TurnstileWidget, useTurnstile } from "@/modules/bot-protection/ui/turnstile-widget";
 
 interface Props {
   email: string;
@@ -16,12 +17,15 @@ interface Props {
 export const CheckEmailNotice = ({ email }: Props) => {
   const trpc = useTRPC();
   const [resent, setResent] = useState(false);
+  const turnstile = useTurnstile();
   const resend = useMutation(trpc.auth.resendVerification.mutationOptions({
+    onSettled: () => turnstile.reset(),
     onSuccess: () => {
       setResent(true);
       toast.success("If your account still needs confirming, we sent a new link.");
     },
-    onError: () => toast.error("Couldn't send right now. Please try again in a minute."),
+    onError: (error) =>
+      toast.error(error.data?.code === "INTERNAL_SERVER_ERROR" ? "Couldn't send right now. Please try again in a minute." : error.message),
   }));
 
   return (
@@ -37,12 +41,13 @@ export const CheckEmailNotice = ({ email }: Props) => {
       <p className="text-sm text-neutral-600">
         Can&apos;t find it? Check your Spam or Promotions folder. You can ask for a new link once a minute.
       </p>
+      {!resent && <TurnstileWidget {...turnstile.widgetProps} />}
       <Button
         type="button"
         variant="outline"
         className="w-fit"
-        disabled={resend.isPending || resent}
-        onClick={() => resend.mutate({ email })}
+        disabled={resend.isPending || resent || !turnstile.token}
+        onClick={() => resend.mutate({ email, turnstileToken: turnstile.token })}
       >
         {resend.isPending ? "Sending..." : resent ? "Link sent" : "Send the link again"}
       </Button>
