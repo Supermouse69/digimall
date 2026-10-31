@@ -33,6 +33,11 @@ const settings: MarketplaceSettings = {
   signupKeyPoints: "",
   checkoutKeyPoints: "",
   chatRetentionDays: 90,
+  maxStoresPerCart: 3,
+  storeConfirmMinutes: 10,
+  paymentMinutes: 10,
+  paymentCheckReminderMinutes: 30,
+  fareExtraStopFee: 0,
 };
 check("center is inside", isInServiceArea(settings, { lat: 14.916, lng: 120.766 }), true);
 check("~3 km away is inside", isInServiceArea(settings, { lat: 14.943, lng: 120.766 }), true);

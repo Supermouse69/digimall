@@ -2,7 +2,7 @@ import type { CollectionConfig } from "payload";
 
 import { isSuperAdmin } from "@/lib/access";
 
-export const MESSAGE_KINDS = ["text", "image", "product_ref", "system"] as const;
+export const MESSAGE_KINDS = ["text", "image", "product_ref", "system", "order_card", "payment_receipt"] as const;
 export const MESSAGE_SIDES = ["buyer", "store", "system"] as const;
 
 const locked = { update: () => false };
@@ -29,6 +29,8 @@ export const Messages: CollectionConfig = {
     { name: "text", type: "textarea", maxLength: 2000, access: locked },
     { name: "image", type: "upload", relationTo: "private-media", access: locked },
     { name: "product", type: "relationship", relationTo: "products", access: locked },
+    // Order cards + payment receipts point to their store order (Phase 5)
+    { name: "storeOrder", type: "relationship", relationTo: "store-orders", access: locked },
     {
       // What the product looked like when it was sent (it may change or be hidden later)
       name: "productSnapshot",

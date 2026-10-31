@@ -15,6 +15,7 @@ export const PRIVATE_MEDIA_PURPOSES = [
   "store-bir",
   "store-dti-sec",
   "chat-image",
+  "payment-receipt",
 ] as const;
 export type PrivateMediaPurpose = (typeof PRIVATE_MEDIA_PURPOSES)[number];
 
@@ -47,10 +48,37 @@ const ownerOrSuperAdmin: Access = async ({ req, data }) => {
     return true;
   }
 
-  // Chat photos: the other person in that chat may see them too (buyer <-> store)
-  const chatIds = await myConversationIds(req);
-  const own: Where = { owner: { equals: req.user.id } };
-  return chatIds.length > 0 ? { or: [own, { conversation: { in: chatIds } }] } : own;
+  // Chat photos + payment receipts: the other person in that chat may see them too (buyer <-> store).
+  // Store GCash QR: a buyer sees it only while one of their orders from that store is waiting
+  // for payment, and only once the super-admin approved it (CLAUDE.md §10 table, §11.1).
+  const [chatIds, qrIds] = await Promise.all([myConversationIds(req), payableQrIds(req)]);
+  const allowed: Where[] = [{ owner: { equals: req.user.id } }];
+  if (chatIds.length > 0) allowed.push({ conversation: { in: chatIds } });
+  if (qrIds.length > 0) allowed.push({ id: { in: qrIds } });
+  return allowed.length > 1 ? { or: allowed } : allowed[0]!;
+};
+
+const payableQrIds = async (req: Parameters<Access>[0]["req"]): Promise<string[]> => {
+  if (!req.user || (req.user as { role?: string }).role !== "buyer") return [];
+  const { docs: storeOrders } = await req.payload.find({
+    collection: "store-orders",
+    where: { and: [{ buyer: { equals: req.user.id } }, { status: { in: ["awaiting_payment", "payment_submitted"] } }] },
+    depth: 0,
+    limit: 50,
+    overrideAccess: true,
+    req,
+  });
+  const tenantIds = [...new Set(storeOrders.map((so) => ownerId(so.tenant)).filter((id): id is string => Boolean(id)))];
+  if (tenantIds.length === 0) return [];
+  const { docs: stores } = await req.payload.find({
+    collection: "tenants",
+    where: { and: [{ id: { in: tenantIds } }, { gcashQrApproved: { equals: true } }] },
+    depth: 0,
+    limit: 50,
+    overrideAccess: true,
+    req,
+  });
+  return stores.map((store) => ownerId(store.gcashQr)).filter((id): id is string => Boolean(id));
 };
 
 // Chats this user is part of: as the buyer, or as the seller of the store

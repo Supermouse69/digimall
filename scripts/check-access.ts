@@ -224,6 +224,23 @@ const main = async () => {
   check("admin: read messages (of reported chats only)", await acc("messages", "read", admin), "where", "conversation.underReport");
   check("admin: edit message text", await acc("messages", "update", admin), false);
 
+  console.log("--- Orders, store orders, fares (closed to the API) ---");
+  for (const slug of ["orders", "store-orders", "fares"]) {
+    for (const [who, user] of [["anonymous", anon], ["buyer", attacker], ["seller", seller], ["rider", rider]] as const) {
+      check(`${who}: read ${slug} via API`, await acc(slug, "read", user), false);
+      check(`${who}: create ${slug} via API`, await acc(slug, "create", user), false);
+      check(`${who}: update ${slug} via API`, await acc(slug, "update", user), false);
+      check(`${who}: delete ${slug} via API`, await acc(slug, "delete", user), false);
+    }
+    check(`admin: read ${slug}`, await acc(slug, "read", admin), true);
+  }
+  for (const slug of ["orders", "store-orders"]) {
+    check(`admin: create ${slug} by hand`, await acc(slug, "create", admin), false);
+    check(`admin: edit ${slug} by hand`, await acc(slug, "update", admin), false);
+    check(`admin: delete ${slug} (kept for legal records)`, await acc(slug, "delete", admin), false);
+  }
+  check("admin: enter fares", await acc("fares", "create", admin), true);
+
   console.log("--- Audit log (append-only) ---");
   check("seller: read audit log", await acc("audit-logs", "read", seller), false);
   check("admin: read audit log", await acc("audit-logs", "read", admin), true);

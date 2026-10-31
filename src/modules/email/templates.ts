@@ -97,3 +97,15 @@ export const adminResetDisabledTemplate = () => ({
     footer: "If it wasn't you, someone may know your email. Your password was NOT changed.",
   }),
 });
+
+// Order confirmation with the order code (CLAUDE.md §11.12). Not an official receipt (CLAUDE.md §9 BIR).
+export const orderPlacedTemplate = ({ name, code, storeCount }: { name?: unknown; code: string; storeCount: number }) => ({
+  subject: `DigiMall order ${code} placed`,
+  html: layout({
+    heading: `Hi ${firstName(name)}, your order ${code} is placed`,
+    intro: `We sent it to ${storeCount === 1 ? "the store" : `${storeCount} stores`}. Each store confirms first, then you pay that store by GCash and send the receipt in the chat.`,
+    buttonLabel: "View my order",
+    url: appUrl(`/orders/${encodeURIComponent(code)}`),
+    footer: "Order Summary — not an official receipt/invoice. The delivery fee is paid in cash to your rider.",
+  }),
+});

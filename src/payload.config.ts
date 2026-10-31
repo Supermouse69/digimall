@@ -18,6 +18,9 @@ import { AuditLogs } from "./collections/AuditLogs";
 import { Reports } from "./collections/Reports";
 import { Conversations } from "./collections/Conversations";
 import { Messages } from "./collections/Messages";
+import { Fares } from "./collections/Fares";
+import { Orders } from "./collections/Orders";
+import { StoreOrders } from "./collections/StoreOrders";
 import { Invites } from "./collections/Invites";
 import { PrivateMedia } from "./collections/PrivateMedia";
 import { RiderProfiles } from "./collections/RiderProfiles";
@@ -61,6 +64,9 @@ export default buildConfig({
     Reports,
     Conversations,
     Messages,
+    Orders,
+    StoreOrders,
+    Fares,
     AuditLogs,
   ],
   // Max 5 MB per uploaded file (CLAUDE.md §10.8)

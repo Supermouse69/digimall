@@ -11,6 +11,13 @@ export const DEFAULT_SERVICE_CENTER = { lat: 14.916, lng: 120.766 };
 export const DEFAULT_SERVICE_RADIUS_KM = 8;
 export const DEFAULT_MINIMUM_AGE = 18;
 export const DEFAULT_CHAT_RETENTION_DAYS = 90;
+export const ORDER_DEFAULTS = {
+  maxStoresPerCart: 3,
+  storeConfirmMinutes: 10,
+  paymentMinutes: 10,
+  paymentCheckReminderMinutes: 30,
+  fareExtraStopFee: 0,
+};
 
 export const Settings: GlobalConfig = {
   slug: "settings",
@@ -99,6 +106,53 @@ export const Settings: GlobalConfig = {
           admin: {
             description: "Shown at checkout (built in Phase 5). One point per line (a leading * or - is fine).",
           },
+        },
+      ],
+    },
+    {
+      type: "collapsible",
+      label: "Orders + timers",
+      fields: [
+        { name: "maxStoresPerCart", label: "Max stores per cart", type: "number", required: true, min: 1, max: 10, defaultValue: ORDER_DEFAULTS.maxStoresPerCart },
+        {
+          name: "storeConfirmMinutes",
+          label: "Minutes a store has to confirm a new order",
+          type: "number",
+          required: true,
+          min: 1,
+          max: 240,
+          defaultValue: ORDER_DEFAULTS.storeConfirmMinutes,
+          admin: { description: "After this the store order expires and the buyer is told (CLAUDE.md §11.5)." },
+        },
+        {
+          name: "paymentMinutes",
+          label: "Minutes the buyer has to pay after the store confirms",
+          type: "number",
+          required: true,
+          min: 1,
+          max: 240,
+          defaultValue: ORDER_DEFAULTS.paymentMinutes,
+          admin: { description: "Unpaid after this = cancelled automatically. Once a receipt is sent there is NO auto-cancel." },
+        },
+        {
+          name: "paymentCheckReminderMinutes",
+          label: "Minutes before a not-yet-checked payment is flagged",
+          type: "number",
+          required: true,
+          min: 5,
+          max: 1440,
+          defaultValue: ORDER_DEFAULTS.paymentCheckReminderMinutes,
+          admin: { description: "If the seller hasn't tapped Payment received / Not received by then, it's flagged for you." },
+        },
+        {
+          name: "fareExtraStopFee",
+          label: "Delivery fee for each extra store stop (₱, whole pesos)",
+          type: "number",
+          required: true,
+          min: 0,
+          max: 1000,
+          defaultValue: ORDER_DEFAULTS.fareExtraStopFee,
+          admin: { description: "Added to the base fare (Fares) for every store after the first. Paid in cash to the rider." },
         },
       ],
     },

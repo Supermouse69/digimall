@@ -79,6 +79,9 @@ export interface Config {
     reports: Report;
     conversations: Conversation;
     messages: Message;
+    orders: Order;
+    'store-orders': StoreOrder;
+    fares: Fare;
     'audit-logs': AuditLog;
     'payload-kv': PayloadKv;
     'payload-locked-documents': PayloadLockedDocument;
@@ -103,6 +106,9 @@ export interface Config {
     reports: ReportsSelect<false> | ReportsSelect<true>;
     conversations: ConversationsSelect<false> | ConversationsSelect<true>;
     messages: MessagesSelect<false> | MessagesSelect<true>;
+    orders: OrdersSelect<false> | OrdersSelect<true>;
+    'store-orders': StoreOrdersSelect<false> | StoreOrdersSelect<true>;
+    fares: FaresSelect<false> | FaresSelect<true>;
     'audit-logs': AuditLogsSelect<false> | AuditLogsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
@@ -319,7 +325,8 @@ export interface PrivateMedia {
     | 'store-permit'
     | 'store-bir'
     | 'store-dti-sec'
-    | 'chat-image';
+    | 'chat-image'
+    | 'payment-receipt';
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -512,15 +519,129 @@ export interface Message {
   conversation: string | Conversation;
   side: 'buyer' | 'store' | 'system';
   sender?: (string | null) | User;
-  kind: 'text' | 'image' | 'product_ref' | 'system';
+  kind: 'text' | 'image' | 'product_ref' | 'system' | 'order_card' | 'payment_receipt';
   text?: string | null;
   image?: (string | null) | PrivateMedia;
   product?: (string | null) | Product;
+  storeOrder?: (string | null) | StoreOrder;
   productSnapshot?: {
     name?: string | null;
     price?: number | null;
     storeSlug?: string | null;
   };
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "store-orders".
+ */
+export interface StoreOrder {
+  id: string;
+  code: string;
+  order: string | Order;
+  suffix: string;
+  tenant: string | Tenant;
+  buyer: string | User;
+  conversation?: (string | null) | Conversation;
+  items?:
+    | {
+        product?: (string | null) | Product;
+        name: string;
+        price: number;
+        qty: number;
+        id?: string | null;
+      }[]
+    | null;
+  subtotal: number;
+  status:
+    | 'awaiting_store'
+    | 'awaiting_payment'
+    | 'payment_submitted'
+    | 'paid'
+    | 'picked_up'
+    | 'delivered'
+    | 'cancelled'
+    | 'expired';
+  expiresAt?: string | null;
+  storeNotes?: string | null;
+  payment?: {
+    method?: 'gcash_manual' | null;
+    receipt?: (string | null) | PrivateMedia;
+    referenceNo?: string | null;
+    submittedAt?: string | null;
+    confirmedAt?: string | null;
+    notReceivedAt?: string | null;
+  };
+  confirmedAt?: string | null;
+  cancel?: {
+    by?: ('buyer' | 'store' | 'system') | null;
+    reason?: string | null;
+    at?: string | null;
+  };
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "orders".
+ */
+export interface Order {
+  id: string;
+  code: string;
+  buyer: string | User;
+  status:
+    | 'in_progress'
+    | 'ready_to_book'
+    | 'rider_requested'
+    | 'rider_assigned'
+    | 'on_the_way'
+    | 'delivered'
+    | 'cancelled'
+    | 'self_pickup';
+  mode: 'casual' | 'fast';
+  delivery?: {
+    buyerName?: string | null;
+    barangay?: string | null;
+    addressDetails?: string | null;
+    /**
+     * @minItems 2
+     * @maxItems 2
+     */
+    location?: [number, number] | null;
+    landmarkPhoto?: (string | null) | PrivateMedia;
+  };
+  riderNotes?: string | null;
+  fare?: {
+    estimate?: number | null;
+    base?: number | null;
+    extraStops?: number | null;
+    extraStopFee?: number | null;
+  };
+  cancel?: {
+    by?: ('buyer' | 'store' | 'system') | null;
+    reason?: string | null;
+    at?: string | null;
+  };
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * One row per route (store's barangay -> buyer's barangay). Same barangay = one row with both the same.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "fares".
+ */
+export interface Fare {
+  id: string;
+  fromBarangay: string;
+  toBarangay: string;
+  casualFare: number;
+  fastFare: number;
+  /**
+   * Filled in automatically.
+   */
+  routeKey?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -632,6 +753,18 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'messages';
         value: string | Message;
+      } | null)
+    | ({
+        relationTo: 'orders';
+        value: string | Order;
+      } | null)
+    | ({
+        relationTo: 'store-orders';
+        value: string | StoreOrder;
+      } | null)
+    | ({
+        relationTo: 'fares';
+        value: string | Fare;
       } | null)
     | ({
         relationTo: 'audit-logs';
@@ -933,6 +1066,7 @@ export interface MessagesSelect<T extends boolean = true> {
   text?: T;
   image?: T;
   product?: T;
+  storeOrder?: T;
   productSnapshot?:
     | T
     | {
@@ -940,6 +1074,101 @@ export interface MessagesSelect<T extends boolean = true> {
         price?: T;
         storeSlug?: T;
       };
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "orders_select".
+ */
+export interface OrdersSelect<T extends boolean = true> {
+  code?: T;
+  buyer?: T;
+  status?: T;
+  mode?: T;
+  delivery?:
+    | T
+    | {
+        buyerName?: T;
+        barangay?: T;
+        addressDetails?: T;
+        location?: T;
+        landmarkPhoto?: T;
+      };
+  riderNotes?: T;
+  fare?:
+    | T
+    | {
+        estimate?: T;
+        base?: T;
+        extraStops?: T;
+        extraStopFee?: T;
+      };
+  cancel?:
+    | T
+    | {
+        by?: T;
+        reason?: T;
+        at?: T;
+      };
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "store-orders_select".
+ */
+export interface StoreOrdersSelect<T extends boolean = true> {
+  code?: T;
+  order?: T;
+  suffix?: T;
+  tenant?: T;
+  buyer?: T;
+  conversation?: T;
+  items?:
+    | T
+    | {
+        product?: T;
+        name?: T;
+        price?: T;
+        qty?: T;
+        id?: T;
+      };
+  subtotal?: T;
+  status?: T;
+  expiresAt?: T;
+  storeNotes?: T;
+  payment?:
+    | T
+    | {
+        method?: T;
+        receipt?: T;
+        referenceNo?: T;
+        submittedAt?: T;
+        confirmedAt?: T;
+        notReceivedAt?: T;
+      };
+  confirmedAt?: T;
+  cancel?:
+    | T
+    | {
+        by?: T;
+        reason?: T;
+        at?: T;
+      };
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "fares_select".
+ */
+export interface FaresSelect<T extends boolean = true> {
+  fromBarangay?: T;
+  toBarangay?: T;
+  casualFare?: T;
+  fastFare?: T;
+  routeKey?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -1035,6 +1264,23 @@ export interface Setting {
    * Shown at checkout (built in Phase 5). One point per line (a leading * or - is fine).
    */
   checkoutKeyPoints?: string | null;
+  maxStoresPerCart: number;
+  /**
+   * After this the store order expires and the buyer is told (CLAUDE.md §11.5).
+   */
+  storeConfirmMinutes: number;
+  /**
+   * Unpaid after this = cancelled automatically. Once a receipt is sent there is NO auto-cancel.
+   */
+  paymentMinutes: number;
+  /**
+   * If the seller hasn't tapped Payment received / Not received by then, it's flagged for you.
+   */
+  paymentCheckReminderMinutes: number;
+  /**
+   * Added to the base fare (Fares) for every store after the first. Paid in cash to the rider.
+   */
+  fareExtraStopFee: number;
   /**
    * Messages are deleted this many days after the last message (CLAUDE.md §11.3). Chats under a report are kept until you resolve it.
    */
@@ -1058,6 +1304,11 @@ export interface SettingsSelect<T extends boolean = true> {
   minimumAge?: T;
   signupKeyPoints?: T;
   checkoutKeyPoints?: T;
+  maxStoresPerCart?: T;
+  storeConfirmMinutes?: T;
+  paymentMinutes?: T;
+  paymentCheckReminderMinutes?: T;
+  fareExtraStopFee?: T;
   chatRetentionDays?: T;
   updatedAt?: T;
   createdAt?: T;

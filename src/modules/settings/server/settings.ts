@@ -6,6 +6,7 @@ import {
   DEFAULT_MINIMUM_AGE,
   DEFAULT_SERVICE_CENTER,
   DEFAULT_SERVICE_RADIUS_KM,
+  ORDER_DEFAULTS,
 } from "@/globals/Settings";
 import { distanceKm, fromPoint, type LatLng } from "@/lib/geo";
 
@@ -17,6 +18,11 @@ export type MarketplaceSettings = {
   signupKeyPoints: string;
   checkoutKeyPoints: string;
   chatRetentionDays: number;
+  maxStoresPerCart: number;
+  storeConfirmMinutes: number;
+  paymentMinutes: number;
+  paymentCheckReminderMinutes: number;
+  fareExtraStopFee: number;
 };
 
 // Reads the admin-editable settings, falling back to the defaults until the super-admin saves them.
@@ -35,6 +41,11 @@ export const getSettings = async (payload: Payload): Promise<MarketplaceSettings
     signupKeyPoints: settings?.signupKeyPoints ?? "",
     checkoutKeyPoints: settings?.checkoutKeyPoints ?? "",
     chatRetentionDays: settings?.chatRetentionDays ?? DEFAULT_CHAT_RETENTION_DAYS,
+    maxStoresPerCart: settings?.maxStoresPerCart ?? ORDER_DEFAULTS.maxStoresPerCart,
+    storeConfirmMinutes: settings?.storeConfirmMinutes ?? ORDER_DEFAULTS.storeConfirmMinutes,
+    paymentMinutes: settings?.paymentMinutes ?? ORDER_DEFAULTS.paymentMinutes,
+    paymentCheckReminderMinutes: settings?.paymentCheckReminderMinutes ?? ORDER_DEFAULTS.paymentCheckReminderMinutes,
+    fareExtraStopFee: settings?.fareExtraStopFee ?? ORDER_DEFAULTS.fareExtraStopFee,
   };
 };
 

@@ -124,8 +124,10 @@ export type ChatMessage = {
   id: string;
   side: "buyer" | "store" | "system";
   mine: boolean;
-  kind: "text" | "image" | "product_ref" | "system";
+  kind: Message["kind"];
   text: string | null;
+  // Order cards + payment receipts (Phase 5): the store order they belong to
+  storeOrderId: string | null;
   imageUrl: string | null;
   product: { id: string; name: string; price: number; storeSlug: string } | null;
   createdAt: string;
@@ -138,6 +140,7 @@ const toChatMessage = (actor: ChatActor, message: Message): ChatMessage => ({
   kind: message.kind,
   text: message.text ?? null,
   imageUrl: mediaUrl(message.image),
+  storeOrderId: relationId(message.storeOrder),
   product:
     message.kind === "product_ref" && message.productSnapshot?.name
       ? {
@@ -328,6 +331,74 @@ export const sendMessage = async (ctx: ChatCtx, actor: ChatActor, input: SendInp
     req,
   });
   return { conversationId: conversation.id };
+};
+
+// ---------- used by orders (order cards, payment receipts, status messages) ----------
+
+// The store chat between a buyer and a store, created if it doesn't exist yet
+export const ensureStoreConversation = async ({ payload, req }: ChatCtx, buyerId: string, tenantId: string): Promise<Conversation> => {
+  const threadKey = threadKeyFor(buyerId, tenantId);
+  const find = async () =>
+    (await payload.find({ collection: "conversations", where: { threadKey: { equals: threadKey } }, depth: 0, limit: 1, overrideAccess: true, req }))
+      .docs[0] as Conversation | undefined;
+  const existing = await find();
+  if (existing) return existing;
+  try {
+    return (await payload.create({ collection: "conversations", data: { threadKey, type: "store", buyer: buyerId, tenant: tenantId }, overrideAccess: true, req })) as Conversation;
+  } catch {
+    const raced = await find();
+    if (!raced) throw notFound();
+    return raced;
+  }
+};
+
+export type PostInput = {
+  side: "buyer" | "store" | "system";
+  kind: Message["kind"];
+  text?: string;
+  senderId?: string;
+  storeOrderId?: string;
+  imageId?: string;
+  preview: string;
+  // Who should see it as a new message (badge + bold in the list)
+  notify: "buyer" | "store";
+};
+
+// Posts one message from server code (not typed by a person) and updates the chat summary
+export const postChatMessage = async (ctx: ChatCtx, conversation: Conversation, input: PostInput) => {
+  const { payload, req } = ctx;
+  if (isCleared(conversation)) await deleteMessagesOf(ctx, conversation.id);
+  await payload.create({
+    collection: "messages",
+    data: {
+      conversation: conversation.id,
+      side: input.side,
+      sender: input.senderId,
+      kind: input.kind,
+      text: input.text,
+      storeOrder: input.storeOrderId,
+      image: input.imageId,
+    },
+    overrideAccess: true,
+    req,
+  });
+  const now = new Date();
+  const { chatRetentionDays } = await getSettings(payload);
+  // lastSenderSide decides who sees it as unread: the OTHER side of whoever "sent" it
+  const fromSide = input.notify === "buyer" ? "store" : "buyer";
+  await payload.update({
+    collection: "conversations",
+    id: conversation.id,
+    data: {
+      lastMessageAt: now.toISOString(),
+      lastMessagePreview: input.preview.slice(0, 100),
+      lastSenderSide: fromSide,
+      ...(fromSide === "buyer" ? { buyerLastReadAt: now.toISOString() } : { storeLastReadAt: now.toISOString() }),
+      deleteAfter: new Date(now.getTime() + chatRetentionDays * 86_400_000).toISOString(),
+    },
+    overrideAccess: true,
+    req,
+  });
 };
 
 // ---------- reports + retention ----------
