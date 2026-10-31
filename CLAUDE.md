@@ -136,6 +136,7 @@ scripts/              checks: `bun run test:access | test:redirects | test:signu
 public/               static files
 suggestions/          critical suggestions for the developer (§4)
 suggestions/tobedone/ things the developer still has to test or do (checklists)
+suggestions/check_phase3/ Phase 3 check list for the developer
 media/                local public uploads, gitignored (moves to Vercel Blob later)
 private-media/        local PRIVATE uploads (IDs, licenses, landmark photos), gitignored (Vercel Private Blob later)
 backups/              local DB backups made before migrations, gitignored (contain personal data)

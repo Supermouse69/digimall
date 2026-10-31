@@ -1,0 +1,113 @@
+Title: CHECK PHASE 3: stores, products, store pages, reports
+Date: 2026-10-31
+Status: not checked yet by the developer
+Branch: phase-3-stores-products
+
+BEFORE YOU START
+- Stop and restart `bun run dev` (new pages + a new database collection for reports).
+- Use 3 browser windows (or 1 normal + 1 incognito):
+    A) super-admin through the hidden admin entry
+    B) a seller account (/login -> goes to /admin)
+    C) a buyer account (/login), or just logged out
+- If something fails: write down which step, what you clicked, and the exact message.
+
+==================================================================
+PART 1: STORE + PRODUCT DATA (Payload admin)
+==================================================================
+As SUPER-ADMIN (window A):
+ [ ] 1.1 Stores list shows Name / Slug / Status / Barangay / GCash QR approved
+ [ ] 1.2 Your 4 stores say "Unverified store". The "admin" store says "Pending (hidden)"
+ [ ] 1.3 Open a store, set Status to "Business permit checked", save
+         -> "Verified at" and "Verified by" fill in by themselves
+ [ ] 1.4 Fill in a store's details: owner/business name, description, barangay,
+         street/purok, map pin, hours, logo, banner -> saves
+ [ ] 1.5 Barangay "Makati" -> refused. A map pin far away (Manila) -> refused
+ [ ] 1.6 Audit Logs: you see "store.status_changed" for step 1.3
+
+As SELLER (window B):
+ [ ] 1.7 You only see YOUR store. You can edit description, hours, logo, etc.
+ [ ] 1.8 You CAN'T change: Status, "GCash QR approved", slug, Verified at/by
+ [ ] 1.9 GCash QR:
+         - open "Private files" -> upload your QR image, purpose = "store-gcash-qr"
+         - open your store -> pick that file in "GCash QR code" -> save
+         -> saves, and "GCash QR approved" stays unticked
+ [ ] 1.10 (Window A) super-admin ticks "GCash QR approved" -> saves
+ [ ] 1.11 (Window B) seller uploads a DIFFERENT QR and picks it -> approval turns OFF by itself
+ [ ] 1.12 Business permit / barangay clearance: upload with purpose "store-permit", pick it
+          in "Mayor's/business permit or barangay business clearance" -> saves
+ [ ] 1.13 Products: price 25 saves. 24.50 is refused. 0 is refused. Category is required
+ [ ] 1.14 Products: untick "Available" -> saves
+ [ ] 1.15 Products: you CAN'T tick "Hidden by admin"
+
+==================================================================
+PART 2: BUYER PAGES (window C)
+==================================================================
+Home page (/)
+ [ ] 2.1 "Stores" section shows your stores grouped by barangay (stores with no barangay
+         are under "Other stores"). Each one has a badge: "Unverified store" or
+         "Business permit checked" (green)
+ [ ] 2.2 Tapping a store opens /store/<slug>
+ [ ] 2.3 Prices show WITHOUT .00, e.g. ₱25
+ [ ] 2.4 Sort buttons: Newest / Price: low to high / Price: high to low -> order changes correctly
+         (the old "Curated / Trending / Hot & New" are gone)
+ [ ] 2.5 No "Tags" filter in the Filters box (only Price)
+ [ ] 2.6 Search box: type part of a product name -> the list filters after a moment.
+         The Stores section hides while searching. Clear the box -> everything comes back
+ [ ] 2.7 Price filter min/max still works
+ [ ] 2.8 A product you set "Not available" (step 1.14) shows a "Not available" label
+         and a greyed-out picture
+
+Store page (/store/<slug>)
+ [ ] 2.9 Shows banner (if set), logo, name, badge, description, owner/business name,
+         address (street, barangay, Calumpit, Bulacan), hours, "On DigiMall since <month year>"
+ [ ] 2.10 Small map with the store's pin (only if a pin was set), with "© OpenStreetMap contributors"
+ [ ] 2.11 Does NOT show: phone, GCash QR, permit, any document, owner email
+ [ ] 2.12 "Chat with store (coming soon)" button is greyed out (chat is Phase 4)
+ [ ] 2.13 Only that store's products are listed
+ [ ] 2.14 Old link /tenants/<slug> -> jumps to /store/<slug> by itself
+
+Product page (/store/<slug>/products/<id>)
+ [ ] 2.15 Shows price (₱25 style), store name + badge, description
+ [ ] 2.16 Available product: "Add to cart" works. Not-available product: grey "Not available" button
+ [ ] 2.17 The link button copies the page link ("Link copied")
+ [ ] 2.18 "Chat with store (coming soon)" is greyed out
+
+Hidden things really hide
+ [ ] 2.19 /store/admin -> "not found" page (pending store)
+ [ ] 2.20 (Window A) set a store to "Suspended (hidden)":
+          -> its store page = not found, its products disappear from home.
+          Set it back to "Unverified store" -> back again
+ [ ] 2.21 (Window A) tick "Hidden by admin" on a product + write a reason:
+          -> gone from home and its page = not found. Untick -> back
+ [ ] 2.22 Seller's own PENDING store also shows "not found" on the buyer site.
+          That's expected: buyers (and the public site) only see approved stores
+
+==================================================================
+PART 3: REPORTS
+==================================================================
+ [ ] 3.1 Logged out: "Report this product" / "Report this store" -> sends you to log in,
+         then back to the same page
+ [ ] 3.2 Logged in as a buyer: "Report this product" -> a pop-up (not a browser alert) with
+         5 reasons + optional details -> "Send report" -> "Thanks for reporting"
+ [ ] 3.3 Same for "Report this store" on a store page
+ [ ] 3.4 Reporting the same thing twice while it's still open -> still says thanks,
+         but only ONE report is saved
+ [ ] 3.5 Send 6 different reports within an hour -> the 6th says "Too many tries..."
+ [ ] 3.6 (Window A) Payload admin -> "Reports": you see each report (status open, what,
+         reason, note, reporter)
+ [ ] 3.7 Mark one "resolved" -> Audit Logs shows "report.status_changed"
+ [ ] 3.8 (Window B) the seller does NOT see "Reports" in the admin panel at all
+
+==================================================================
+KNOWN / NOT INCLUDED (on purpose)
+==================================================================
+- Chat buttons are placeholders until Phase 4.
+- The checkout button still points to a page that doesn't exist yet (Phase 5).
+- 12 old products have no category: they still show, but must get one when edited.
+- Uploading private files for a store takes 2 steps (Private files, then pick it).
+  It can be made smoother later if it's annoying.
+- Unverified stores have NO product/order limits during beta (your decision).
+- The full reports queue (filters, quick actions) comes in Phase 8.
+- Not tested by Claude: the logged-in report flow end to end (steps 3.2–3.7).
+  The rules were tested (only the super-admin can read reports, nobody can create
+  one through the raw API, logged-out users are refused).
