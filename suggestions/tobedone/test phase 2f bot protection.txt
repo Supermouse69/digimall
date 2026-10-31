@@ -1,0 +1,41 @@
+Title: TO TEST: Phase 2f bot protection (Turnstile + rate limits)
+Date: 2026-10-31
+Status: not tested yet by the developer
+
+Before you start:
+- Stop and restart `bun run dev`, so the new Turnstile keys in .env load.
+  (Without a restart the forms say "The robot check isn't set up".)
+- Dev uses Cloudflare's TEST keys: the box says "Testing only" and always passes. That's normal.
+
+1. Robot check shows on all 5 forms
+   [ ] /sign-up: Cloudflare box above "Create account"
+   [ ] /login: box above "Log in"
+   [ ] /forgot-password: box above "Send reset link"
+   [ ] "Send the link again" box (after sign-up, or when logging in with an unconfirmed email)
+   [ ] Hidden admin login /admin-entry/<your key>: box above "Sign in"
+   For each: the button is grey until the box shows a check mark, then it works.
+
+2. Normal use still works
+   [ ] Log in as a buyer, a seller (goes to /admin) and a rider (goes to /rider)
+   [ ] Admin login with email + password + authenticator code
+   [ ] Forgot password: the link prints in the terminal and works
+   [ ] Wrong password twice in a row: the box resets itself each time, and you can try again
+
+3. Too many tries gets blocked (all local tries count as ONE visitor)
+   [ ] Log in with a wrong password 11 times in a row
+       -> the 11th says "Too many tries. Please wait about X minutes and try again."
+   [ ] Wait the minutes shown -> login works again
+   Careful: 5 wrong passwords on ONE real account also locks that account for 10 min
+   (Payload's own lock). Use a fake email like nobody@example.com for this test.
+   [ ] Forgot password for the same email 4 times (reload the page between tries)
+       -> the 4th shows a red popup "Too many tries..."
+
+4. Seller admin login (/admin/login) is limited too
+   [ ] 11 wrong logins at /admin/login -> "Too many tries..."
+
+If something fails: write down which form, what you clicked, and the exact message, then tell Claude.
+
+Before going live (not a test, just remember):
+- Make a real Turnstile widget for digimall.online in the Cloudflare dashboard (free)
+  and put the keys in Vercel's environment variables.
+- Mention Cloudflare Turnstile in the Privacy Notice.
