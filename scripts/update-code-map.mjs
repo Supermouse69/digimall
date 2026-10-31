@@ -4,13 +4,20 @@
 // descriptions, Notes) are kept from the existing note, so re-running never loses them.
 // Only writes to the notes folder, never to the project.
 import { execSync } from "node:child_process";
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmdirSync, unlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 const NOTES_DIR = process.env.CODE_MAP_DIR ?? "C:/Users/Moises/Desktop/MOISES/Digimall Notes";
 const MAP_DIR = path.join(NOTES_DIR, "Code Map");
 const today = new Date().toISOString().slice(0, 10);
+
+// Links are written from the vault root (the folder with .obsidian), so same-named files
+// like page.tsx or procedures.ts in different folders never get mixed up.
+const findVault = (dir) =>
+  existsSync(path.join(dir, ".obsidian")) ? dir : path.dirname(dir) === dir ? null : findVault(path.dirname(dir));
+const VAULT = findVault(path.resolve(NOTES_DIR)) ?? path.resolve(NOTES_DIR);
+const MAP_LINK_BASE = path.relative(VAULT, MAP_DIR).split(path.sep).join("/");
 
 const seedArg = process.argv.indexOf("--seed");
 const seed = seedArg > 0 ? (await import(pathToFileURL(path.resolve(process.argv[seedArg + 1])).href)).default : {};
@@ -24,10 +31,22 @@ const files = execSync("git ls-files", { encoding: "utf8" })
   .filter((f) => existsSync(f));
 const fileSet = new Set(files);
 
-// Note name: path without "src/", "/" -> " - ", brackets -> braces (Obsidian links break on "[ ]")
-const noteName = (file) =>
-  file.replace(/^src\//, "").split("/").join(" - ").replace(/\[/g, "{").replace(/\]/g, "}");
-const link = (file) => `[[${noteName(file)}]]`;
+// Notes mirror the code's folders: src/collections/Users.ts -> Code Map/src/collections/Users.ts.md
+// Brackets become braces ([slug] -> {slug}) because Obsidian links break on "[ ]", and names
+// starting with "." get a "_" in front (.env.example -> _.env.example) because Obsidian hides dotfiles.
+const notePath = (file) =>
+  file
+    .replace(/\[/g, "{")
+    .replace(/\]/g, "}")
+    .split("/")
+    .map((part) => (part.startsWith(".") ? "_" + part : part))
+    .join("/");
+const noteFile = (file) => path.join(MAP_DIR, ...notePath(file).split("/")) + ".md";
+const link = (file) => `[[${MAP_LINK_BASE}/${notePath(file)}.md|${path.posix.basename(file)}]]`;
+const INDEX_LINK = `[[${MAP_LINK_BASE}/_Index.md|_Index]]`;
+// Old flat name ("collections - Users.ts"), only used to move notes made before the folder layout
+const legacyFile = (file) =>
+  path.join(MAP_DIR, file.replace(/^src\//, "").split("/").join(" - ").replace(/\[/g, "{").replace(/\]/g, "}") + ".md");
 
 // ---------- imports ----------
 const CODE = /\.(ts|tsx|js|mjs)$/;
@@ -125,9 +144,9 @@ const buildNote = (f, old) => {
   const b = [...usedBy.get(f)].sort().map((x) => `- ${link(x)}`);
 
   return [
-    `# ${f.replace(/^src\//, "")}`,
+    `# ${path.posix.basename(f)}`,
     "",
-    `Path: \`${f}\` · back to [[_Index]]`,
+    `Path: \`${f}\` · back to ${INDEX_LINK}`,
     "",
     "## Purpose",
     purpose,
@@ -152,27 +171,42 @@ mkdirSync(MAP_DIR, { recursive: true });
 mkdirSync(path.join(NOTES_DIR, "Claude Logs"), { recursive: true });
 let created = 0;
 let updated = 0;
+let moved = 0;
 for (const f of files) {
-  const target = path.join(MAP_DIR, noteName(f) + ".md");
-  const old = existsSync(target) ? readFileSync(target, "utf8") : null;
+  const target = noteFile(f);
+  const legacy = legacyFile(f);
+  let old = existsSync(target) ? readFileSync(target, "utf8") : null;
+  if (!old && existsSync(legacy)) {
+    old = readFileSync(legacy, "utf8");
+    unlinkSync(legacy);
+    moved++;
+  }
   const next = buildNote(f, old);
   if (old === next) continue;
+  mkdirSync(path.dirname(target), { recursive: true });
   writeFileSync(target, next);
   if (old) updated++;
   else created++;
 }
 
 // Notes whose file is gone: mark them, never delete them
-const live = new Set(files.map((f) => noteName(f) + ".md"));
+const live = new Set(files.map(noteFile));
 let deleted = 0;
-for (const name of readdirSync(MAP_DIR)) {
-  if (!name.endsWith(".md") || name === "_Index.md" || live.has(name)) continue;
-  const p = path.join(MAP_DIR, name);
+const walk = (dir) =>
+  readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
+for (const p of walk(MAP_DIR)) {
+  if (!p.endsWith(".md") || p === path.join(MAP_DIR, "_Index.md") || live.has(p)) continue;
   const text = readFileSync(p, "utf8");
   if (text.startsWith("**DELETED")) continue;
   writeFileSync(p, `**DELETED (${today})**\n\n${text}`);
   deleted++;
 }
+// Folders left empty (e.g. after a move) are removed
+const pruneEmpty = (dir) => {
+  for (const e of readdirSync(dir, { withFileTypes: true })) if (e.isDirectory()) pruneEmpty(path.join(dir, e.name));
+  if (dir !== MAP_DIR && readdirSync(dir).length === 0) rmdirSync(dir);
+};
+pruneEmpty(MAP_DIR);
 
 // Keep the file list in _Index.md current (between the markers; the rest is hand-written)
 const indexPath = path.join(MAP_DIR, "_Index.md");
@@ -196,6 +230,8 @@ if (existsSync(indexPath)) {
   }
 }
 
-const todo = files.filter((f) => readFileSync(path.join(MAP_DIR, noteName(f) + ".md"), "utf8").includes("TODO"));
-console.log(`Code Map: ${files.length} files · ${created} new · ${updated} updated · ${deleted} marked deleted`);
+const todo = files.filter((f) => readFileSync(noteFile(f), "utf8").includes("TODO"));
+console.log(
+  `Code Map: ${files.length} files · ${created} new · ${updated} updated · ${moved} moved into folders · ${deleted} marked deleted`,
+);
 if (todo.length) console.log(`Still has TODO text:\n  ${todo.join("\n  ")}`);

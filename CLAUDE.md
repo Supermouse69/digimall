@@ -466,7 +466,7 @@ Notes folder: `C:\Users\Moises\Desktop\MOISES\Digimall Notes` (inside the develo
 - `Code Map/`: one note per source file
 - `Code Map/_Index.md`: overview of the whole project
 
-**Note names:** the file's path without `src/`, with `/` written as ` - ` and `[ ]` written as `{ }` (Obsidian links break on brackets). Examples: `collections - Users.ts`, `app - (app) - (auth) - login - page.tsx`, `scripts - check-access.ts`. A generator script keeps the Uses/Used-by links in sync.
+**Note layout:** `Code Map/` mirrors the code's folders exactly: `src/collections/Users.ts` → `Code Map/src/collections/Users.ts.md`. Two small changes: `[ ]` → `{ }` (`[slug]` → `{slug}`, since Obsidian links break on brackets), and a leading `.` gets a `_` (`.env.example` → `_.env.example.md`, since Obsidian hides dotfiles). Links use the full vault path with the filename as the label, so files with the same name don't mix up: `[[Digimall Notes/Code Map/src/lib/access.ts.md|access.ts]]`. `bun run notes:map` creates/updates the notes and keeps the Uses/Used-by links in sync.
 
 **1. First run (backfill):** if `Code Map/_Index.md` doesn't exist yet, first:
 1. Scan the whole project (skip `node_modules`, `.git`, `.next`, build folders).
