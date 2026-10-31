@@ -1,0 +1,32 @@
+Title: Resend invite email not working (test 2.5)
+Date: 2026-10-31
+Priority: Medium
+Area: flow
+
+What's the problem?
+In test 2.5 the "Send the invite email again" option didn't work.
+
+What I found (read-only check of the dev database, 2026-10-31):
+- The only invite is lean123@email.com (seller). It was sent at 01:34:41 UTC and ACCEPTED about
+  30 seconds later (the owner already set a password through the link).
+- The "Send the invite email again" checkbox only shows, and only works, while the invite is
+  still "sent" (not accepted). After acceptance it's hidden on purpose: the account already has
+  its own password, so a new "set your password" link isn't an invite anymore.
+- So it's most likely working as designed, but there's no message saying why. That's confusing.
+
+Why it matters (what could go wrong):
+- The admin thinks the system is broken, or that the seller never got a link.
+- A seller who forgot their password after accepting needs a different path (normal "Forgot
+  password?" on /login). The admin panel doesn't say that.
+
+What I suggest:
+1. Re-test: create a NEW invite, DON'T open the link, then tick "Send the invite email again"
+   and save. A second email with a new link should print in the terminal, and the first link
+   should stop working.
+2. If that works: add a short note on accepted invites, e.g. "Already accepted. If they forgot
+   their password, they can use 'Forgot password?' on the login page."
+3. If it doesn't work: tell me what happened (any error, or nothing printed), and I'll fix it.
+
+Effort and cost (free? needs a paid service?): Free, small UI text change.
+Trade-offs / risks: None. Only wording in the admin panel.
+What I need from you: Do the re-test in step 1 and tell me the result.

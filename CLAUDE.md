@@ -129,6 +129,7 @@ scripts/              checks: `bun run test:access | test:redirects | test:signu
                       DB checks (real dev DB, inside cancelled transactions): `test:invites | test:rider-docs | test:admin-login`
                       `admin:reset-2fa <email> [--new-password]` emergency 2FA reset (writes to the DB)
                       `seed:mock` adds/removes [MOCK] products (writes to the DB)
+                      `notes:map` refreshes the Obsidian Code Map notes (§17; writes only to the notes folder)
 public/               static files
 suggestions/          critical suggestions for the developer (§4)
 media/                local public uploads, gitignored (moves to Vercel Blob later)
@@ -456,3 +457,46 @@ Each phase: plan → approval → build → test → summary. Don't start the ne
 - UI text in simple English; keep strings easy to translate later (Filipino/Taglish).
 - TypeScript strict. Business rules live on the server (tRPC procedures / Payload hooks), never only in the UI.
 - Write tests for the critical parts: order/refund state transitions, timers, access control.
+
+## 17. Obsidian logging rules (developer's rule, added 2026-10-31)
+
+Notes folder: `C:\Users\Moises\Desktop\MOISES\Digimall Notes` (inside the developer's Obsidian vault `C:\Users\Moises\Desktop\MOISES`). Create the `Claude Logs` and `Code Map` folders if they don't exist.
+
+- `Claude Logs/`: one note per task/run
+- `Code Map/`: one note per source file
+- `Code Map/_Index.md`: overview of the whole project
+
+**Note names:** the file's path without `src/`, with `/` written as ` - ` and `[ ]` written as `{ }` (Obsidian links break on brackets). Examples: `collections - Users.ts`, `app - (app) - (auth) - login - page.tsx`, `scripts - check-access.ts`. A generator script keeps the Uses/Used-by links in sync.
+
+**1. First run (backfill):** if `Code Map/_Index.md` doesn't exist yet, first:
+1. Scan the whole project (skip `node_modules`, `.git`, `.next`, build folders).
+2. Create one note per source file in `Code Map/`, with:
+   - **Purpose**: what the file does, in 1–3 sentences.
+   - **Main functions/classes**: name plus a one-line description of each.
+   - **Uses**: [[wikilinks]] to the files it imports or calls.
+   - **Used by**: [[wikilinks]] to the files that import or call it.
+   - **Notes**: anything confusing, unfinished, or buggy.
+3. Create `Code Map/_Index.md` with:
+   - What the project is and how to run it.
+   - A folder structure overview.
+   - A mermaid diagram of how the main files connect.
+   - A link to every file note.
+4. Write `Claude Logs/0000 - Project History.md`: a timeline from `git log`, with small commits grouped together.
+5. Write a log note for the backfill run (format in step 2).
+
+If the Code Map exists but some files have no note, add the missing notes.
+
+**2. Every run: log the result.** After every task, create `Claude Logs/YYYY-MM-DD HHmm - <short task name>.md` with:
+- **Summary**: what the developer asked and what you did (3–5 bullets).
+- **Result**: did it work? Include run/test output or errors.
+- **Files changed**: each one as a [[wikilink]] to its Code Map note.
+- **Map**: a mermaid diagram of how the changed files/functions connect.
+- **Next steps**: anything unfinished or worth doing next.
+
+**3. Every run: keep the Code Map up to date.**
+- New file → create its note.
+- Changed file → update its note (purpose, functions, links).
+- Deleted file → put `**DELETED (YYYY-MM-DD)**` at the top of its note. Don't delete the note.
+- Update the mermaid diagram in `_Index.md` if the structure changed.
+
+**Style:** short, simple notes in plain language. Use [[wikilinks]] everywhere so Obsidian's Graph View shows the connections, and ```mermaid code blocks for diagrams.
