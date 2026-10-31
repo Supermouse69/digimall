@@ -241,7 +241,7 @@ export const SignUpView = ({ next, options }: Props) => {
 
             {options.keyPoints.length > 0 && (
               <div className="rounded-md border bg-white p-4 flex flex-col gap-2">
-                <p className="font-medium">Before you sign up, please know:</p>
+                <p className="font-medium">Before you join</p>
                 <ul className="list-disc pl-5 text-sm flex flex-col gap-1">
                   {options.keyPoints.map((point, index) => (
                     <li key={index}>{point}</li>

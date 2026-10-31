@@ -14,6 +14,7 @@ export type MarketplaceSettings = {
   serviceRadiusKm: number;
   minimumAge: number;
   signupKeyPoints: string;
+  checkoutKeyPoints: string;
 };
 
 // Reads the admin-editable settings, falling back to the defaults until the super-admin saves them.
@@ -30,8 +31,16 @@ export const getSettings = async (payload: Payload): Promise<MarketplaceSettings
     serviceRadiusKm: settings?.serviceRadiusKm ?? DEFAULT_SERVICE_RADIUS_KM,
     minimumAge: settings?.minimumAge ?? DEFAULT_MINIMUM_AGE,
     signupKeyPoints: settings?.signupKeyPoints ?? "",
+    checkoutKeyPoints: settings?.checkoutKeyPoints ?? "",
   };
 };
+
+// Turns the Settings text box into a list: one point per line, without "*", "-" or "•" markers
+export const toKeyPointList = (text: string): string[] =>
+  text
+    .split(/\r?\n/)
+    .map((line) => line.trim().replace(/^[*\-•]+\s*/, "").trim())
+    .filter(Boolean);
 
 export const isInServiceArea = (settings: MarketplaceSettings, point: LatLng): boolean =>
   distanceKm(settings.serviceCenter, point) <= settings.serviceRadiusKm;

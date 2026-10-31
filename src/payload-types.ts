@@ -826,9 +826,13 @@ export interface Setting {
    */
   minimumAge: number;
   /**
-   * Short summary from your Terms: cancellation once 'On the way', delivery fee, refunds, paid-but-unbooked orders. One point per line.
+   * Shown on the sign-up page. One point per line (a leading * or - is fine). Cover: cancellation once 'On the way', delivery fee, refunds, paid-but-unbooked orders.
    */
   signupKeyPoints?: string | null;
+  /**
+   * Shown at checkout (built in Phase 5). One point per line (a leading * or - is fine).
+   */
+  checkoutKeyPoints?: string | null;
   updatedAt?: string | null;
   createdAt?: string | null;
 }
@@ -847,6 +851,7 @@ export interface SettingsSelect<T extends boolean = true> {
   serviceRadiusKm?: T;
   minimumAge?: T;
   signupKeyPoints?: T;
+  checkoutKeyPoints?: T;
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;

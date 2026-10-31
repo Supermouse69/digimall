@@ -189,6 +189,29 @@ Keep `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_ROOT_DOMAIN`, and `NEXT_PUBLIC_ENABLE_S
 - Legal pages are **blank placeholders**, editable only by the super-admin in Payload: `terms-buyer`, `terms-seller`, `terms-rider`, `privacy`. Seed each with its title and `[Developer: write this]`. Do not write legal text.
 - Signup shows an age-confirmation checkbox; the minimum age is set by the developer in the Terms.
 - The Terms (written by the developer) must highlight: no cancellation once an order is "On the way", delivery fee rules, refund rules, and the paid-but-unbooked policy. Show these key points at signup and at checkout.
+- **Key points text (written by the developer, 2026-10-31).** Stored in Settings (`signupKeyPoints`, `checkoutKeyPoints`, editable by the super-admin); copied here so it isn't lost. Don't reword it — the developer owns this text.
+
+  Sign-up box: "Before you join"
+  - You pay each store directly via GCash, then upload your receipt.
+  - The delivery fee is separate and paid in cash to your rider.
+  - You can cancel until your order is "On the way". After that, no cancellations.
+  - Refunds come from the store, not from Digimall, and go back through GCash.
+  - Paid but no rider booked yet? Your order is safe. Book a rider or ask the store for a refund.
+  - We only deliver in San Marcos, Balite, Sergio Bayan and Buguion (Calumpit).
+
+  Checkout box: "Quick reminders" (shown at checkout, Phase 5)
+  - Pay each store first. Your rider can only be booked once every store confirms.
+  - Delivery fee: Will be paid in cash to the rider (delivery fee rate will be posted at Dev Hub at developer announcements page.
+  - Once it's "On the way", you can't cancel anymore.
+  - Wrong or missing item? Report it in chat within __ hours for a refund or replacement.
+  - Paid but not booked within 3 hours? We'll remind you. After 2 days, the store refunds you.
+  - No convenience fee during the beta.
+
+  ⚠️ **Open questions — some points differ from the spec; the developer decides before Phase 5/7:**
+  1. Paid-but-unbooked: the text says remind after **3 hours** and the store refunds after **2 days**. §11.10 says remind after **30 min**, **8:00 PM same-day cutoff → `self_pickup`**, and stores owe a refund only if a cancel button is pressed. Which one is the rule?
+  2. "Rider can only be booked once every store **confirms**" — §11.5 makes booking possible once every store order is **paid** (`ready_to_book`). Same meaning?
+  3. Delivery fee "posted at Dev Hub / developer announcements page" — there's no such page in the app; §11.11 shows the estimated fare at checkout from the admin fare table. Keep both, or only the in-app fare?
+  4. "Wrong or missing item → report within __ hours for a refund or replacement": the number is blank, and refunds after delivery aren't in the spec yet (§11.9 covers refunds only when a paid store order is cancelled). New flow needed?
 
 **Old Google Sheets data:** don't bulk-import buyers' personal data — buyers re-register under the new Privacy Notice. The admin re-creates stores and riders.
 

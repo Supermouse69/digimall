@@ -1,7 +1,7 @@
 import { baseProcedure, createTRPCRouter } from "@/trpc/init";
 import { getLegalDocuments, REQUIRED_DOCUMENTS } from "@/modules/legal/server/consents";
 
-import { getSettings } from "./settings";
+import { getSettings, toKeyPointList } from "./settings";
 
 export const settingsRouter = createTRPCRouter({
   // Only what the public sign-up form needs — never the whole settings document.
@@ -14,10 +14,7 @@ export const settingsRouter = createTRPCRouter({
       serviceCenter: settings.serviceCenter,
       serviceRadiusKm: settings.serviceRadiusKm,
       minimumAge: settings.minimumAge,
-      keyPoints: settings.signupKeyPoints
-        .split(/\r?\n/)
-        .map((line) => line.trim())
-        .filter(Boolean),
+      keyPoints: toKeyPointList(settings.signupKeyPoints),
       documents,
     };
   }),

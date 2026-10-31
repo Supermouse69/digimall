@@ -4,7 +4,7 @@ import { distanceKm } from "../src/lib/geo";
 import { isPhMobile, normalizePhMobile } from "../src/lib/ph-phone";
 import { needsConsent } from "../src/modules/legal/server/consents";
 import { registerSchema } from "../src/modules/auth/schemas";
-import { isInServiceArea, type MarketplaceSettings } from "../src/modules/settings/server/settings";
+import { isInServiceArea, toKeyPointList, type MarketplaceSettings } from "../src/modules/settings/server/settings";
 
 let failed = 0;
 const check = (label: string, got: unknown, want: unknown) => {
@@ -30,11 +30,16 @@ const settings: MarketplaceSettings = {
   serviceRadiusKm: 8,
   minimumAge: 18,
   signupKeyPoints: "",
+  checkoutKeyPoints: "",
 };
 check("center is inside", isInServiceArea(settings, { lat: 14.916, lng: 120.766 }), true);
 check("~3 km away is inside", isInServiceArea(settings, { lat: 14.943, lng: 120.766 }), true);
 check("Manila is outside", isInServiceArea(settings, { lat: 14.5995, lng: 120.9842 }), false);
 check("1 degree latitude ~ 111 km", Math.round(distanceKm({ lat: 0, lng: 0 }, { lat: 1, lng: 0 })), 111);
+
+console.log("--- Key points box ---");
+const messy = ["* One", "", "- Two", "\u2022  Three", "   "].join("\r\n");
+check("bullets and blank lines cleaned", toKeyPointList(messy), ["One", "Two", "Three"]);
 
 console.log("--- Re-consent ---");
 const current = [

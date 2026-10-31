@@ -80,13 +80,23 @@ export const Settings: GlobalConfig = {
         },
         {
           name: "signupKeyPoints",
-          label: "Key points shown at sign-up and checkout",
+          label: "Sign-up box: \"Before you join\"",
           type: "textarea",
           maxLength: 2000,
           defaultValue: "[Developer: write this]",
           admin: {
             description:
-              "Short summary from your Terms: cancellation once 'On the way', delivery fee, refunds, paid-but-unbooked orders. One point per line.",
+              "Shown on the sign-up page. One point per line (a leading * or - is fine). Cover: cancellation once 'On the way', delivery fee, refunds, paid-but-unbooked orders.",
+          },
+        },
+        {
+          name: "checkoutKeyPoints",
+          label: "Checkout box: \"Quick reminders\"",
+          type: "textarea",
+          maxLength: 2000,
+          defaultValue: "[Developer: write this]",
+          admin: {
+            description: "Shown at checkout (built in Phase 5). One point per line (a leading * or - is fine).",
           },
         },
       ],
