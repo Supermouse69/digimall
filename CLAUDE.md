@@ -98,7 +98,7 @@ Mention any new suggestion files in your session summary.
 | Tutorial | DigiMall |
 |---|---|
 | Stripe Connect + platform fees | **Remove Stripe completely.** Manual GCash QR in beta. Keep payment code in one isolated module so a gateway (Xendit) can be added later. |
-| Vendor subdomains (`store.domain.com`) | **Off:** `NEXT_PUBLIC_ENABLE_SUBDOMAIN_ROUTING=false`. Public store URL is **`/store/[slug]`** (tutorial default is `/tenants/[slug]`; changing it is a routing change → show the plan first and keep a redirect from the old path). Reason: the domain's DNS is on Cloudflare, so no wildcard subdomains on Vercel. |
+| Vendor subdomains (`store.domain.com`) | **Off:** `NEXT_PUBLIC_ENABLE_SUBDOMAIN_ROUTING=false`. Public store URL is **`/store/[slug]`** (tutorial default is `/tenants/[slug]`). **Approved 2026-10-31**: move it in Phase 3 and keep a redirect from the old path. Reason: the domain's DNS is on Cloudflare, so no wildcard subdomains on Vercel. |
 | Digital products / purchase "library" | DigiMall sells **physical goods** with delivery. Replace the library with "My Orders". Remove digital-delivery fields (ask first). |
 | Admin + merchant dashboards in Payload | Sellers and the super-admin use Payload admin. **Riders get their own mobile-first portal at `/rider`** (not Payload admin). |
 | — | **New:** riders, in-site chat, multi-store cart, rider booking, refunds, store verification tiers. |
@@ -415,7 +415,7 @@ Check against the existing code first; schema changes follow §3.
 - **legal-pages:** slug, title, content, version, publishedAt.
 - **reports**, **audit-logs**, **push-subscriptions**, **media** (public), **private-media** (private).
 
-Store money as **integer centavos** (no floating-point math; propose the change if the current code uses decimals) and display like ₱1,234.00.
+Store money as **whole pesos (integers, no decimals)**: developer decision 2026-10-31, replaces the earlier "integer centavos" plan. Prices must be whole numbers ≥ 1 (validated on the server), so all totals and refunds are exact integer math. Display like ₱1,234 (no ".00").
 
 ## 13. Carried over from the Google Sheets beta
 

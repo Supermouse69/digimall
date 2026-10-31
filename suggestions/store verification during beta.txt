@@ -1,0 +1,48 @@
+Title: Store verification during beta (business permit only)
+Date: 2026-10-31
+Priority: High
+Area: legal / flow
+
+What's the problem?
+CLAUDE.md §9 says the "Verified" badge needs: BIR Certificate of Registration (Form 2303) +
+DTI/SEC registration + Mayor's/Business permit (+ barangay clearance).
+The developer's decision (2026-10-31): during beta, BIR and the other government papers aren't
+really necessary, only the business permit.
+
+Why it matters (what could go wrong):
+I'm not a lawyer, and this is not legal advice. But these laws may still apply during a beta:
+- Internet Transactions Act (RA 11967): platforms should keep a registry of their merchants and do
+  "due diligence" on them. It doesn't name an exact list of papers that I'm sure of.
+- BIR: online sellers are expected to register with BIR, whatever platform they sell on. If
+  DigiMall shows a "Verified" badge on a store that isn't BIR-registered, it could look like we
+  vouch for a store that isn't fully legal.
+- DigiMall itself isn't a registered business yet (CLAUDE.md §9), so keeping the beta small and
+  low-risk matters.
+
+What I suggest (keeps the beta easy for sari-sari stores, and stays honest):
+1. "Unverified store" (default after you approve a store): no papers needed. Badge visible to
+   buyers, limits of max 10 products and max 10 orders/day (already in the spec).
+2. "Verified" during beta = you checked their Mayor's/Business permit (or barangay business
+   clearance for very small stores, your choice).
+   The badge text says exactly that: "Business permit checked". It doesn't say "Verified business",
+   so we never claim more than we checked.
+3. Keep optional upload slots for BIR 2303 / DTI / SEC. Not required in beta, but ready for when
+   online payments (Xendit) come, since that needs full business papers anyway.
+4. All papers go in PRIVATE storage (super-admin only, every view logged), like rider documents.
+5. Before leaving beta, get a short check from a lawyer or accountant on which papers to require.
+
+Merchant info shown on store pages (my proposal, the minimum that still shows who the seller is):
+- Store name, and the owner's or business name (as written on the permit)
+- Barangay + general address (street/purok), plus the store's map pin
+- Badge: "Unverified store" or "Business permit checked"
+- "On DigiMall since <month year>"
+- Contact: the "Chat with store" button (no phone number shown, as CLAUDE.md §10 says)
+NOT shown: permit numbers, IDs, TIN, the owner's personal phone or email.
+
+Effort and cost: Free. Part of Phase 3.
+Trade-offs / risks: "Business permit checked" is weaker than full verification. Buyers
+mostly care that the store is real and local, which the permit shows.
+What I need from you:
+- OK with "Business permit checked" as the beta badge wording? (or pick your own words)
+- Also accept a barangay business clearance for tiny stores? yes / no
+- OK with the merchant info list above?
