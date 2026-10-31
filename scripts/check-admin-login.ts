@@ -96,6 +96,11 @@ await withUser("super-admin", async (req, email) => {
   check("...only server code that asks for hidden fields can read them", withHidden.includes("ENCRYPTED-SECRET"));
 });
 
+// Payload only keeps a session if the account is marked verified. An account with NO status can
+// log in but is instantly treated as logged out (the bug fixed by migration 20261031_002034).
+const stuck = await payload.db.collections["users"]!.collection.countDocuments({ _verified: { $exists: false } });
+check("no account is stuck 'logged in but not kept logged in' (missing verified status)", stuck === 0, stuck);
+
 const leftovers = await payload.find({ collection: "users", where: { email: { like: `admin-login-` } }, depth: 0 });
 check("cleanup: nothing was saved", leftovers.docs.length === 0, leftovers.docs.length);
 

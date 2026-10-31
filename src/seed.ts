@@ -160,6 +160,8 @@ const seed = async () => {
       password: adminPassword,
       role: "super-admin",
       name: "Admin",
+      // Email verification is on; without this the admin could log in but never stay logged in
+      _verified: true,
       tenants: [
         {
           tenant: adminTenant.id,
