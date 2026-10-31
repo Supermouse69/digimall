@@ -183,6 +183,7 @@ Keep `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_ROOT_DOMAIN`, and `NEXT_PUBLIC_ENABLE_S
 - Payload admin access is allowed only for `seller` and `super-admin`.
 - **Beta: one role per account.** A store owner who wants to shop uses a separate buyer account.
 - Seller order board + seller chat: build them as custom Payload admin views if practical, otherwise as a seller area in the Next.js app using the same login. Propose the approach before building.
+- **Seller orders (decided 2026-10-31):** each store order appears as an **order card in that buyer's store chat** with the seller's action buttons, plus a tile-grid **Orders board** (`/seller/orders`) that opens from the Payload admin next to the chat bubble.
 - **Chat UI (decided 2026-10-31):** a floating **chat head** (bubble + small chat window, like other shopping apps) on every buyer-site page for buyers and sellers, and the same chat head inside the Payload admin for sellers (it shows `/chat?embed=1` in a frame). Full-page fallback at `/chat`.
 
 ## 8. Accounts & onboarding
@@ -220,8 +221,8 @@ Keep `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_ROOT_DOMAIN`, and `NEXT_PUBLIC_ENABLE_S
 
   ⚠️ **Open questions — some points differ from the spec; the developer decides before Phase 5/7:**
   1. Paid-but-unbooked: the text says remind after **3 hours** and the store refunds after **2 days**. §11.10 says remind after **30 min**, **8:00 PM same-day cutoff → `self_pickup`**, and stores owe a refund only if a cancel button is pressed. Which one is the rule?
-  2. "Rider can only be booked once every store **confirms**" — §11.5 makes booking possible once every store order is **paid** (`ready_to_book`). Same meaning?
-  3. Delivery fee "posted at Dev Hub / developer announcements page" — there's no such page in the app; §11.11 shows the estimated fare at checkout from the admin fare table. Keep both, or only the in-app fare?
+  2. ~~"confirms" vs "paid"~~ **Decided 2026-10-31: booking opens only when every non-cancelled store order is PAID** (seller tapped "Payment received"), as in §11.5.
+  3. ~~Dev Hub vs in-app fare~~ **Decided 2026-10-31: in-app fare table** (super-admin enters rates; checkout shows the estimate; without a rate it says the rider will tell the fee).
   4. "Wrong or missing item → report within __ hours for a refund or replacement": the number is blank, and refunds after delivery aren't in the spec yet (§11.9 covers refunds only when a paid store order is cancelled). New flow needed?
 
 **Old Google Sheets data:** don't bulk-import buyers' personal data — buyers re-register under the new Privacy Notice. The admin re-creates stores and riders.
@@ -343,7 +344,7 @@ All durations, limits, and amounts below are **defaults stored in an admin-edita
 
 | Status | Meaning / who acts | Timer |
 |---|---|---|
-| `awaiting_store` | Store confirms, edits (remove items / change qty or price → buyer must accept), or cancels with a reason | 10 min → `expired` (buyer notified) |
+| `awaiting_store` | Store confirms or cancels with a reason. (**Edits are postponed** — decided 2026-10-31: beta = confirm or cancel only; the buyer re-orders if needed.) | 10 min → `expired` (buyer notified) |
 | `awaiting_payment` | The order card shows the store's approved GCash QR + total. Buyer pays in GCash, then uploads the receipt (+ optional GCash reference number) | 10 min → auto-`cancelled` (unpaid) |
 | `payment_submitted` | **Timer stops** (buyer has paid). Seller checks GCash → "Payment received" (→ `paid`) or "Not received" (→ admin flag) | Reminder + admin flag after 30 min. **Never auto-cancel after a receipt is submitted.** |
 | `paid` 🟢 | Green light — store prepares the items | — |
