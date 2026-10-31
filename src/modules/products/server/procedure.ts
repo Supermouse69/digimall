@@ -12,7 +12,9 @@ export const productsRouter = createTRPCRouter({
   getOne: baseProcedure
   .input(
     z.object({
-      id:z.string(),
+      id: z.string().max(100),
+      // The store in the URL: a product opened under another store's address is "not found"
+      tenantSlug: z.string().max(100).optional(),
     })
   )
   .query(async({ctx,input}) => {
@@ -21,7 +23,10 @@ export const productsRouter = createTRPCRouter({
     const product = await ctx.db
       .findByID({ collection: "products", id: input.id, depth: 2, overrideAccess: false })
       .catch(() => null);
-    if (!product) throw new TRPCError({ code: "NOT_FOUND", message: "Product not found" });
+    const tenant = product?.tenant as Tenant | string | null | undefined;
+    if (!product || (input.tenantSlug && (typeof tenant !== "object" || tenant?.slug !== input.tenantSlug))) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "Product not found" });
+    }
     return {
       ...product,
       image:product.image as Media | null,
@@ -35,41 +40,41 @@ export const productsRouter = createTRPCRouter({
         cursor: z.number().default(1),
         limit: z.number().default(DEFAULT_LIMIT),
         category: z.string().nullable().optional(),
-        minPrice: z.string().nullable().optional(),
-        maxPrice: z.string().nullable().optional(),
+        search: z.string().max(100).nullable().optional(),
+        minPrice: z.string().max(12).nullable().optional(),
+        maxPrice: z.string().max(12).nullable().optional(),
         sort: z.enum(sortValues).nullable().optional(),
         tenantSlug: z.string().nullable().optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
       const where: Where = {};
-      let sort: Sort = "-createdAt";
+      const SORTS: Record<(typeof sortValues)[number], Sort> = {
+        newest: "-createdAt",
+        price_low: "price",
+        price_high: "-price",
+      };
+      const sort: Sort = SORTS[input.sort ?? "newest"];
 
-      if (input.sort === "curated") {
-        sort = "-createdAt";
+      // Search by product name (Payload "like" = every word must appear, any letter case)
+      const search = input.search?.trim();
+      if (search) {
+        where.name = { like: search };
       }
 
-      if (input.sort === "hot_and_new") {
-        sort = "+createdAt";
-      }
-
-      if (input.sort === "trending") {
-        sort = "-createdAt";
-      }
-
-      if (input.minPrice && input.maxPrice) {
+      // Price boxes send text; keep only the digits (whole pesos)
+      const toPesos = (value?: string | null) => {
+        const digits = value?.replace(/[^0-9.]/g, "");
+        const pesos = digits ? Math.floor(Number(digits)) : NaN;
+        return Number.isFinite(pesos) ? pesos : undefined;
+      };
+      const minPrice = toPesos(input.minPrice);
+      const maxPrice = toPesos(input.maxPrice);
+      if (minPrice !== undefined || maxPrice !== undefined) {
         where.price = {
-          greater_than_equal: input.minPrice,
-          less_than_equal: input.maxPrice,
-        }
-      } else if (input.minPrice) {
-        where.price = {
-          greater_than_equal: input.minPrice
-        }
-      } else if (input.maxPrice) {
-        where.price = {
-          less_than_equal: input.maxPrice
-        }
+          ...(minPrice !== undefined ? { greater_than_equal: minPrice } : {}),
+          ...(maxPrice !== undefined ? { less_than_equal: maxPrice } : {}),
+        };
       }
       
       if (input.tenantSlug){

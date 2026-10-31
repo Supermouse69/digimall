@@ -76,6 +76,7 @@ export interface Config {
     products: Product;
     tenants: Tenant;
     'legal-pages': LegalPage;
+    reports: Report;
     'audit-logs': AuditLog;
     'payload-kv': PayloadKv;
     'payload-locked-documents': PayloadLockedDocument;
@@ -97,6 +98,7 @@ export interface Config {
     products: ProductsSelect<false> | ProductsSelect<true>;
     tenants: TenantsSelect<false> | TenantsSelect<true>;
     'legal-pages': LegalPagesSelect<false> | LegalPagesSelect<true>;
+    reports: ReportsSelect<false> | ReportsSelect<true>;
     'audit-logs': AuditLogsSelect<false> | AuditLogsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
@@ -450,6 +452,25 @@ export interface LegalPage {
   createdAt: string;
 }
 /**
+ * What buyers reported. To act: hide the product or suspend the store, then mark this resolved.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "reports".
+ */
+export interface Report {
+  id: string;
+  status: 'open' | 'resolved' | 'dismissed';
+  targetType: 'product' | 'store';
+  product?: (string | null) | Product;
+  store?: (string | null) | Tenant;
+  reason: 'prohibited' | 'scam' | 'wrong_info' | 'offensive' | 'other';
+  note?: string | null;
+  reporter?: (string | null) | User;
+  adminNote?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "audit-logs".
  */
@@ -544,6 +565,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'legal-pages';
         value: string | LegalPage;
+      } | null)
+    | ({
+        relationTo: 'reports';
+        value: string | Report;
       } | null)
     | ({
         relationTo: 'audit-logs';
@@ -792,6 +817,22 @@ export interface LegalPagesSelect<T extends boolean = true> {
   content?: T;
   version?: T;
   publishedAt?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "reports_select".
+ */
+export interface ReportsSelect<T extends boolean = true> {
+  status?: T;
+  targetType?: T;
+  product?: T;
+  store?: T;
+  reason?: T;
+  note?: T;
+  reporter?: T;
+  adminNote?: T;
   updatedAt?: T;
   createdAt?: T;
 }

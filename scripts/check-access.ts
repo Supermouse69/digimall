@@ -192,6 +192,19 @@ const main = async () => {
   check("admin: change invite email after sending", await fieldAcc("invites", "email", "update", admin), false);
   check("admin: change invite role after sending", await fieldAcc("invites", "role", "update", admin), false);
 
+  console.log("--- Reports (only the super-admin sees them) ---");
+  for (const [who, user] of [["anonymous", anon], ["buyer", attacker], ["seller", seller], ["rider", rider]] as const) {
+    check(`${who}: read reports`, await acc("reports", "read", user), false);
+    check(`${who}: create report via API (only through our server code)`, await acc("reports", "create", user), false);
+    check(`${who}: update reports`, await acc("reports", "update", user), false);
+  }
+  check("admin: read reports", await acc("reports", "read", admin), true);
+  check("admin: create report via API", await acc("reports", "create", admin), false);
+  check("admin: mark report resolved", await acc("reports", "update", admin), true);
+  for (const name of ["reporter", "reason", "note", "product", "store", "targetType"]) {
+    check(`admin: change report ${name} afterwards`, await fieldAcc("reports", name, "update", admin), false);
+  }
+
   console.log("--- Audit log (append-only) ---");
   check("seller: read audit log", await acc("audit-logs", "read", seller), false);
   check("admin: read audit log", await acc("audit-logs", "read", admin), true);

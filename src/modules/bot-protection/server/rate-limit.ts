@@ -19,6 +19,7 @@ export const RATE_LIMITS = {
   forgotPasswordEmail: { name: "forgot-email", max: 3, windowMinutes: 60 },
   resendVerificationIp: { name: "resend-ip", max: 5, windowMinutes: 60 },
   adminLogin: { name: "admin-login", max: 5, windowMinutes: 15 },
+  report: { name: "report", max: 5, windowMinutes: 60 },
 } satisfies Record<string, RateLimitRule>;
 
 const COLLECTION = "rate_limits";

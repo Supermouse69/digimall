@@ -27,8 +27,6 @@ export const SearchFilters = () => {
     (subcategory) => subcategory.slug === activeSubcategory
   )?.name || null;
 
-
-
   return (
     <div className="px-4 lg:px-12 py-8 border-b flex flex-col gap-4 w-full" style={{backgroundColor: activeCategoryColor}} 
     >
@@ -41,11 +39,6 @@ export const SearchFilters = () => {
       activeCategoryName={activeCategoryName}
       activeSubcategoryName={activeSubcategoryName}
       />
-
-
-
-
-
     </div>
   );
 };
@@ -53,7 +46,7 @@ export const SearchFilters = () => {
 export const SearchFiltersSkeleton = () =>{
   return(
 <div className="px-4 lg:px-12 py-8 border-b flex flex-col gap-4 w-full" style={{
-  backgroundColor: "F5F5F5",
+  backgroundColor: DEFAULT_BG_COLOR,
 }}>
       <SearchInput disabled/>
       <div className="hidden lg:block">
@@ -62,4 +55,3 @@ export const SearchFiltersSkeleton = () =>{
     </div>
   );
 };
-//5:14:20

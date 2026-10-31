@@ -36,9 +36,10 @@ export const guardPublicForm = async (
   }
 };
 
-// Rate limit only (for steps that come after a protected form, e.g. 2FA setup)
-export const guardRateLimit = async (payload: Payload, rule: RateLimitRule) => {
-  const result = await hitRateLimit(payload, rule, clientIp(await getHeaders()));
+// Rate limit only (for steps that come after a protected form, e.g. 2FA setup, or logged-in
+// actions like reports). Counts per IP unless a key (e.g. the user's ID) is given.
+export const guardRateLimit = async (payload: Payload, rule: RateLimitRule, key?: string) => {
+  const result = await hitRateLimit(payload, rule, key ?? clientIp(await getHeaders()));
   if (!result.ok) {
     throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: tooManyTriesMessage(result.retryAfterMinutes) });
   }

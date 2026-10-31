@@ -5,8 +5,12 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { formatCurrency, generateTenantURL } from "@/lib/utils";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { LinkIcon } from "lucide-react";
+import { LinkIcon, MessageCircleIcon } from "lucide-react";
 import dynamic from "next/dynamic";
+import { toast } from "sonner";
+
+import { ReportButton } from "@/modules/reports/ui/report-button";
+import { StoreBadge } from "@/modules/tenants/ui/components/store-badge";
 
 const CartButton = dynamic(
   () => import("../components/cart-button").then(
@@ -28,8 +32,18 @@ interface ProductViewProps {
 export const ProductView = ({ productId, tenantSlug }: ProductViewProps) => {
   const trpc = useTRPC();
   const { data } = useSuspenseQuery(
-    trpc.products.getOne.queryOptions({ id: productId }),
+    trpc.products.getOne.queryOptions({ id: productId, tenantSlug }),
   );
+  const isAvailable = data.isAvailable !== false;
+
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      toast.success("Link copied");
+    } catch {
+      toast.error("Couldn't copy the link");
+    }
+  };
 
   return (
     <div className="px-4 lg:px-12 py-10">
@@ -47,6 +61,9 @@ export const ProductView = ({ productId, tenantSlug }: ProductViewProps) => {
           <div className="col-span-4">
             <div className="p-6">
               <h1 className="text-4xl font-medium">{data.name}</h1>
+              {!isAvailable && (
+                <p className="mt-2 inline-block rounded bg-black text-white text-sm font-medium px-2 py-1">Not available right now</p>
+              )}
             </div>
             <div className="border-y flex">
               <div className="px-6 py-4 flex items-center justify-center border-r">
@@ -75,6 +92,7 @@ export const ProductView = ({ productId, tenantSlug }: ProductViewProps) => {
                     {data.tenant.name}
                   </p>
                 </Link>
+                <StoreBadge status={data.tenant.status === "verified" ? "verified" : "unverified"} className="ml-2" />
               </div>
             </div>
 
@@ -92,20 +110,34 @@ export const ProductView = ({ productId, tenantSlug }: ProductViewProps) => {
             <div className="border-t lg:border-t-0 lg:border-l h-full">
               <div className="flex flex-col gap-4 p-6 border-b">
                 <div className="flex flex-row items-center gap-2">
-                  <CartButton
-                    productId={productId}
-                    tenantSlug={tenantSlug}
-                  />
+                  {isAvailable ? (
+                    <CartButton
+                      productId={productId}
+                      tenantSlug={tenantSlug}
+                    />
+                  ) : (
+                    <Button disabled variant="elevated" className="flex-1 bg-neutral-200">
+                      Not available
+                    </Button>
+                  )}
 
                   <Button
                     className="size-12"
                     variant="elevated"
-                    onClick={() => {}}
-                    disabled={false}
+                    onClick={copyLink}
+                    aria-label="Copy link"
+                    title="Copy link"
                   >
                     <LinkIcon />
                   </Button>
                 </div>
+                {/* Store chat arrives in Phase 4 */}
+                <Button variant="elevated" disabled className="bg-white" title="Chat is coming soon">
+                  <MessageCircleIcon /> Chat with store (coming soon)
+                </Button>
+              </div>
+              <div className="p-6">
+                <ReportButton targetType="product" targetId={productId} />
               </div>
             </div>
           </div>

@@ -7,6 +7,7 @@ import { legalRouter } from '@/modules/legal/server/procedures';
 import { settingsRouter } from '@/modules/settings/server/procedures';
 import { ridersRouter } from '@/modules/riders/server/procedures';
 import { adminEntryRouter } from '@/modules/admin-security/server/procedures';
+import { reportsRouter } from '@/modules/reports/server/procedures';
  
 export const appRouter = createTRPCRouter({
   auth: authRouter,
@@ -17,6 +18,7 @@ export const appRouter = createTRPCRouter({
   settings: settingsRouter,
   riders: ridersRouter,
   adminEntry: adminEntryRouter,
+  reports: reportsRouter,
 
 });
  

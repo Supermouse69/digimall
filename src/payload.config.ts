@@ -15,6 +15,7 @@ import { Products } from "./collections/Products";
 import { Tenants } from "./collections/Tenants";
 import { LegalPages } from "./collections/LegalPages";
 import { AuditLogs } from "./collections/AuditLogs";
+import { Reports } from "./collections/Reports";
 import { Invites } from "./collections/Invites";
 import { PrivateMedia } from "./collections/PrivateMedia";
 import { RiderProfiles } from "./collections/RiderProfiles";
@@ -51,6 +52,7 @@ export default buildConfig({
     Products,
     Tenants,
     LegalPages,
+    Reports,
     AuditLogs,
   ],
   // Max 5 MB per uploaded file (CLAUDE.md §10.8)
