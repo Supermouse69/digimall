@@ -127,7 +127,7 @@ src/
   payload-types.ts    generated — run `bun run generate:types`, don't edit by hand
   seed.ts             dev seed script (writes to the DB — ask first)
 scripts/              checks: `bun run test:access | test:redirects | test:signup | test:emails | test:2fa | test:bot-protection`
-                      DB checks (real dev DB, inside cancelled transactions): `test:invites | test:rider-docs | test:admin-login`
+                      DB checks (real dev DB, inside cancelled transactions): `test:invites | test:rider-docs | test:admin-login | test:stores`
                       `admin:reset-2fa <email> [--new-password]` emergency 2FA reset (writes to the DB)
                       `seed:mock` adds/removes [MOCK] products (writes to the DB)
                       `notes:map` refreshes the Obsidian Code Map notes (§17; writes only to the notes folder)
@@ -244,7 +244,7 @@ The developer wants DigiMall to be a clean, law-abiding business. When in doubt,
 - Never generate anything that looks like an official receipt or sales invoice. Order summaries must say **"Order Summary — not an official receipt/invoice."**
 - No feature that helps stores hide sales or fake their registration.
 - Verified tier (full launch) = BIR Certificate of Registration (Form 2303) + DTI/SEC registration + Mayor's/Business permit (+ barangay clearance), reviewed by the admin.
-- **Beta (developer decision 2026-10-31, see `suggestions/store verification during beta.txt`):** the top badge is **"Business permit checked"** (admin saw the Mayor's/business permit). BIR 2303 / DTI / SEC uploads are optional slots. Never word the badge as more than what was checked. Re-check with a lawyer/accountant before leaving beta.
+- **Beta (developer decision 2026-10-31, see `suggestions/store verification during beta.txt`):** the top badge is **"Business permit checked"** (admin saw the Mayor's/business permit, **or a barangay business clearance** for small stores). BIR 2303 / DTI / SEC uploads are optional slots. Never word the badge as more than what was checked. Re-check with a lawyer/accountant before leaving beta.
 - A platform fee setting may exist but stays **0 and hidden**. Don't build fee collection until the developer confirms DigiMall's own registration.
 - Future online payments: verified stores only (payment gateways require business KYC).
 

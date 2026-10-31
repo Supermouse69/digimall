@@ -1,6 +1,7 @@
 Title: Store verification during beta (business permit only)
 Date: 2026-10-31
 Priority: High
+Status: DECIDED 2026-10-31: "Business permit checked" badge; barangay business clearance also counts; merchant info list approved; no product/order limits for unverified stores during beta.
 Area: legal / flow
 
 What's the problem?

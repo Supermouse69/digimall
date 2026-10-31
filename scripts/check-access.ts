@@ -45,10 +45,18 @@ const main = async () => {
   const req = (user: U) => ({ user, payload: {}, context: {} }) as never;
   const acc = async (slug: string, op: string, user: U, id?: string) =>
     (col(slug).access as Record<string, (a: unknown) => unknown>)[op]!({ req: req(user), id });
-  const field = (slug: string, name: string) =>
-    (col(slug).fields as { name?: string; access?: Record<string, (a: unknown) => unknown>; fields?: unknown[] }[]).find((f) => f.name === name)!;
-  const fieldAcc = async (slug: string, name: string, op: string, user: U) =>
-    field(slug, name).access?.[op]?.({ req: req(user), id: "x" }) ?? "NO RULE";
+  type F = { name?: string; access?: Record<string, (a: unknown) => unknown>; fields?: F[] };
+  // Finds a field anywhere (also inside collapsibles/groups)
+  const findField = (fields: F[], name: string): F | undefined => {
+    for (const f of fields) {
+      if (f.name === name) return f;
+      const inner = f.fields && !f.name ? findField(f.fields, name) : undefined;
+      if (inner) return inner;
+    }
+  };
+  const field = (slug: string, name: string) => findField(col(slug).fields as F[], name)!;
+  const fieldAcc = async (slug: string, name: string, op: string, user: U, doc?: Record<string, unknown>) =>
+    field(slug, name).access?.[op]?.({ req: req(user), id: "x", doc }) ?? "NO RULE";
 
   console.log("--- The takeover attack: attacker makes themselves super-admin ---");
   check("attacker: update role field", await fieldAcc("users", "role", "update", attacker), false);
@@ -73,7 +81,21 @@ const main = async () => {
   check("admin: read all users", await acc("users", "read", admin), true);
 
   console.log("--- Stores (tenants) ---");
-  check("anonymous: read stores (public pages)", await acc("tenants", "read", anon), true);
+  check("anonymous: read stores (approved stores only)", await acc("tenants", "read", anon), "where", '"status":{"in":["unverified","verified"]}');
+  check("anonymous: pending/suspended stores are not in the public filter", JSON.stringify(await acc("tenants", "read", anon)).includes("pending"), false);
+  check("seller: read stores (approved + own store)", await acc("tenants", "read", seller), "where", "t-1");
+  check("admin: read all stores", await acc("tenants", "read", admin), true);
+  for (const name of ["status", "gcashQrApproved", "verifiedAt", "verifiedBy"]) {
+    check(`seller: change store ${name}`, await fieldAcc("tenants", name, "update", seller), false);
+    check(`admin: change store ${name}`, await fieldAcc("tenants", name, "update", admin), true);
+  }
+  for (const name of ["phone", "gcashQr", "gcashQrApproved", "businessPermit", "birCertificate", "dtiSecRegistration"]) {
+    check(`anonymous: see store ${name}`, await fieldAcc("tenants", name, "read", anon, { id: "t-1" }), false);
+    check(`buyer: see store ${name}`, await fieldAcc("tenants", name, "read", attacker, { id: "t-1" }), false);
+    check(`other store's seller: see store ${name}`, await fieldAcc("tenants", name, "read", seller, { id: "t-2" }), false);
+    check(`own seller: see store ${name}`, await fieldAcc("tenants", name, "read", seller, { id: "t-1" }), true);
+  }
+  check("admin: see store phone", await fieldAcc("tenants", "phone", "read", admin, { id: "t-2" }), true);
   check("attacker: create store", await acc("tenants", "create", attacker), false);
   check("seller: create store", await acc("tenants", "create", seller), false);
   check("attacker: update stores", await acc("tenants", "update", attacker), false);
@@ -83,7 +105,12 @@ const main = async () => {
   check("admin: create store", await acc("tenants", "create", admin), true);
 
   console.log("--- Products ---");
-  check("anonymous: read products", await acc("products", "read", anon), true);
+  check("anonymous: read products (not hidden, approved stores only)", await acc("products", "read", anon), "where", "tenant.status");
+  check("anonymous: hidden products filtered out", JSON.stringify(await acc("products", "read", anon)).includes('"isHidden":{"not_equals":true}'), true);
+  check("admin: read all products", await acc("products", "read", admin), true);
+  check("seller: hide a product (admin only)", await fieldAcc("products", "isHidden", "update", seller), false);
+  check("seller: set hidden reason", await fieldAcc("products", "hiddenReason", "update", seller), false);
+  check("admin: hide a product", await fieldAcc("products", "isHidden", "update", admin), true);
   check("anonymous: create product", await acc("products", "create", anon), false);
   check("attacker (no store): create product", await acc("products", "create", attacker), false);
   check("attacker (no store): update products", await acc("products", "update", attacker), false);
@@ -95,8 +122,9 @@ const main = async () => {
   check("buyer with a store attached: create product", await acc("products", "create", buyerWithStore), false);
   check("buyer with a store attached: update products", await acc("products", "update", buyerWithStore), false);
 
-  console.log("--- Categories, tags, media ---");
-  for (const slug of ["categories", "tags"]) {
+  console.log("--- Categories (whitelist), media ---");
+  check("tags collection removed", config.collections.some((c) => c.slug === "tags"), false);
+  for (const slug of ["categories"]) {
     check(`anonymous: read ${slug}`, await acc(slug, "read", anon), true);
     check(`seller: create ${slug}`, await acc(slug, "create", seller), false);
     check(`seller: update ${slug}`, await acc(slug, "update", seller), false);
