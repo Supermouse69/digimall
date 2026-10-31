@@ -1,0 +1,103 @@
+Title: CHECK PHASE 4: store chat (chat head)
+Date: 2026-10-31
+Status: not checked yet by the developer
+Branch: phase-3-stores-products (Phase 4 is on the same branch)
+
+BEFORE YOU START
+- Stop and restart `bun run dev`. New things: 2 new collections (Chats, Messages), a new
+  CRON_SECRET line in .env, and the admin panel's chat head.
+- You need 2 browsers (or 1 normal + 1 incognito window):
+    BUYER  = a buyer account (/login)
+    SELLER = the seller account of one of your stores (/login -> /admin)
+- Pick a store that is "Unverified store" or "Business permit checked" (not pending/suspended).
+- If something fails: write down the step number, what you clicked, and the exact message.
+
+==================================================================
+PART 1: BUYER CHAT HEAD (buyer site)
+==================================================================
+ [ ] 1.1 Logged OUT: no chat bubble anywhere. "Chat with store" sends you to log in,
+         then back to the same page
+ [ ] 1.2 Logged in as BUYER: a black round chat bubble at the bottom-right of every page
+         (not on /login, /sign-up, /rider and similar pages)
+ [ ] 1.3 Tap the bubble -> "Chats" list. With no chats yet it says how to start one
+ [ ] 1.4 On a phone (or a narrow window), the chat opens FULL SCREEN. On a computer it's a
+         small window at the bottom-right
+ [ ] 1.5 Open a PRODUCT page -> "Chat with store" -> the chat opens on that store,
+         with "Asking about: <product> · ₱price" above the box
+ [ ] 1.6 Type "May stock pa po?" -> Enter (or the send button) -> you see:
+         a product card (tap it = opens the product), then your message
+ [ ] 1.7 Shift+Enter makes a new line instead of sending
+ [ ] 1.8 Go to the STORE page -> "Chat with store" -> the SAME chat opens (one chat per store)
+ [ ] 1.9 Photo: tap the picture icon -> pick a JPG/PNG/WebP photo -> it shows in the chat.
+         A file over 5 MB or a PDF is refused with a message
+ [ ] 1.10 The "X" closes the chat window. The back arrow goes back to the list
+
+==================================================================
+PART 2: SELLER CHAT HEAD (Payload admin)
+==================================================================
+ [ ] 2.1 Log in as the SELLER -> /admin -> a 💬 bubble at the bottom-right of every admin page
+ [ ] 2.2 After the buyer's messages: a pink number on the bubble (may take up to 20 seconds)
+ [ ] 2.3 Tap it -> the chat window opens -> the buyer's chat is in the list, bold, with a pink dot
+ [ ] 2.4 The buyer is shown by their USERNAME, or by FIRST NAME only if they have no username
+         (never the full name, email or phone)
+ [ ] 2.5 Open it: you see the product card, the message and the photo
+ [ ] 2.6 Reply "Meron po!" -> within about 4 seconds the BUYER sees it without refreshing
+ [ ] 2.7 The buyer's bubble gets a pink number. Opening the chat clears it
+ [ ] 2.8 The super-admin's admin panel has NO chat bubble
+ [ ] 2.9 On the buyer site, a SELLER sees "Chat with store (buyers only)" greyed out
+         (one role per account: use a buyer account to shop)
+
+==================================================================
+PART 3: USERNAME AT SIGN-UP
+==================================================================
+ [ ] 3.1 /sign-up has "Username (optional)" under Full name
+ [ ] 3.2 Leave it empty -> sign-up works -> the store sees the first name only
+ [ ] 3.3 "juan_23" works. "juan dela cruz" (spaces) is refused. "digimall_admin" is refused
+         (it would look like an official account)
+ [ ] 3.4 Admin panel -> Users -> a buyer -> the "Username" field is there
+
+==================================================================
+PART 4: PRIVACY + SAFETY
+==================================================================
+ [ ] 4.1 A DIFFERENT buyer account sees none of the first buyer's chats
+ [ ] 4.2 A seller of a DIFFERENT store sees none of this store's chats
+ [ ] 4.3 Copy a photo's address from the chat (right click -> copy image address). Open it:
+         logged out = refused. Logged in as another buyer = refused
+ [ ] 4.4 Super-admin -> admin panel -> "Chats": the list is EMPTY (you only see reported chats)
+ [ ] 4.5 In a chat, tap "Report this chat" -> pick a reason -> send -> "Thanks for reporting"
+ [ ] 4.6 Super-admin -> "Chats": now that chat shows (under report). Open it ->
+         Audit Logs has a "chat.viewed" entry. "Messages" shows its messages
+ [ ] 4.7 "Reports" has the chat report (What was reported: conversation)
+ [ ] 4.8 Super-admin: set the store to "Suspended (hidden)" -> the buyer's chat says
+         "This store isn't available on DigiMall right now" and can't send.
+         Set it back -> sending works again
+ [ ] 4.9 Spam check: sending more than 30 messages in 1 minute -> "Too many tries..."
+
+==================================================================
+PART 5: CHAT CLEANUP (old chats deleted after 90 days)
+==================================================================
+ [ ] 5.1 Admin panel -> Settings -> "Chat" -> "Delete chats after (days)" = 90 (you can change it)
+ [ ] 5.2 Run `bun run chat:cleanup` -> it says how many expired chats it deleted
+         (0 is normal: nothing is 90 days old yet)
+ [ ] 5.3 The daily job's address /api/cron/chat-cleanup refuses visitors:
+         open http://localhost:3000/api/cron/chat-cleanup in the browser -> {"error":"Unauthorized"}
+ Note: reported chats are NOT deleted until you untick "under report" on the chat
+       (after you resolve the report).
+
+==================================================================
+KNOWN / NOT INCLUDED (on purpose)
+==================================================================
+- "Realtime" = checking for new messages every few seconds (beta plan). A live push service
+  can come later. Nothing is checked while the browser tab is hidden (saves mobile data).
+- Order cards, payment receipts and refund messages in chat come in Phases 5 and 7.
+  Trip chat (buyer <-> rider) comes in Phase 6.
+- No push notifications yet (Phase 6). Sellers see new chats by the bubble number.
+- The daily cleanup still needs to be SCHEDULED at deploy (Vercel Cron with CRON_SECRET).
+  Until then, expired chats are cleared automatically when someone opens or writes in them,
+  and you can run `bun run chat:cleanup`.
+- Buyers can't change their username after sign-up yet (no "My account" page). The super-admin
+  can change it in the admin panel.
+- Not tested by Claude in a real browser: the chat head screens (Parts 1–2) and the
+  admin panel's chat bubble. The chat RULES were tested on the database (33 checks:
+  one chat per store, only members can read or write, unread markers, photos, offline
+  stores, cleanup, reported chats kept).
