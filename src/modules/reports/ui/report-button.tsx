@@ -39,7 +39,7 @@ export const ReportButton = ({ targetType, targetId }: Props) => {
       toast.error(error.data?.code === "INTERNAL_SERVER_ERROR" ? "Couldn't send the report. Please try again." : error.message),
   }));
 
-  const label = targetType === "product" ? "Report this product" : "Report this store";
+  const label = targetType === "product" ? "Report this product" : targetType === "store" ? "Report this store" : "Report this chat";
 
   if (!session.data?.user) {
     return (
@@ -65,7 +65,11 @@ export const ReportButton = ({ targetType, targetId }: Props) => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{label}</DialogTitle>
-            <DialogDescription>Only the DigiMall admin sees reports. The store won&apos;t know who reported.</DialogDescription>
+            <DialogDescription>
+              {targetType === "conversation"
+                ? "The DigiMall admin will be able to read this chat to check it. It won't be auto-deleted until the report is handled."
+                : "Only the DigiMall admin sees reports. The store won't know who reported."}
+            </DialogDescription>
           </DialogHeader>
           <form
             className="flex flex-col gap-4"

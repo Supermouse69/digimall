@@ -24,6 +24,8 @@
     "admin:reset-2fa": "tsx --env-file=.env scripts/reset-admin-2fa.ts",
     "test:2fa": "tsx scripts/check-two-factor.ts",
     "test:admin-login": "tsx --env-file=.env scripts/check-admin-login.ts",
+    "chat:cleanup": "tsx --env-file=.env scripts/chat-cleanup.ts",
+    "test:chat": "tsx --env-file=.env scripts/check-chat.ts",
     "test:stores": "tsx --env-file=.env scripts/check-stores.ts",
     "test:bot-protection": "tsx --env-file=.env scripts/check-bot-protection.ts",
     "notes:map": "bun scripts/update-code-map.mjs"

@@ -82,6 +82,7 @@ export const SignUpView = ({ next, options }: Props) => {
     resolver: zodResolver(registerSchema),
     defaultValues: {
       name: "",
+      chatName: "",
       email: "",
       phone: "",
       password: "",
@@ -146,6 +147,21 @@ export const SignUpView = ({ next, options }: Props) => {
                   <FormControl>
                     <Input {...field} autoComplete="name" />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              name="chatName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-base">Username (optional)</FormLabel>
+                  <FormControl>
+                    <Input {...field} autoComplete="username" maxLength={30} />
+                  </FormControl>
+                  <p className="text-sm text-neutral-600">
+                    Stores see this when you chat with them. Leave it empty to show only your first name.
+                  </p>
                   <FormMessage />
                 </FormItem>
               )}

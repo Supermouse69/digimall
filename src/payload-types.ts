@@ -77,6 +77,8 @@ export interface Config {
     tenants: Tenant;
     'legal-pages': LegalPage;
     reports: Report;
+    conversations: Conversation;
+    messages: Message;
     'audit-logs': AuditLog;
     'payload-kv': PayloadKv;
     'payload-locked-documents': PayloadLockedDocument;
@@ -99,6 +101,8 @@ export interface Config {
     tenants: TenantsSelect<false> | TenantsSelect<true>;
     'legal-pages': LegalPagesSelect<false> | LegalPagesSelect<true>;
     reports: ReportsSelect<false> | ReportsSelect<true>;
+    conversations: ConversationsSelect<false> | ConversationsSelect<true>;
+    messages: MessagesSelect<false> | MessagesSelect<true>;
     'audit-logs': AuditLogsSelect<false> | AuditLogsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
@@ -150,6 +154,7 @@ export interface UserAuthOperations {
 export interface User {
   id: string;
   name: string;
+  chatName?: string | null;
   role: 'buyer' | 'seller' | 'rider' | 'super-admin';
   /**
    * Sellers only: the store this account manages.
@@ -301,6 +306,7 @@ export interface Media {
 export interface PrivateMedia {
   id: string;
   owner?: (string | null) | User;
+  conversation?: (string | null) | Conversation;
   /**
    * What this file is for. Store files: store-gcash-qr, store-permit (business permit or barangay clearance), store-bir, store-dti-sec.
    */
@@ -312,7 +318,8 @@ export interface PrivateMedia {
     | 'store-gcash-qr'
     | 'store-permit'
     | 'store-bir'
-    | 'store-dti-sec';
+    | 'store-dti-sec'
+    | 'chat-image';
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -324,6 +331,31 @@ export interface PrivateMedia {
   height?: number | null;
   focalX?: number | null;
   focalY?: number | null;
+}
+/**
+ * Only reported chats are listed here. Opening one is recorded in the audit log.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "conversations".
+ */
+export interface Conversation {
+  id: string;
+  threadKey: string;
+  type: 'store' | 'trip';
+  buyer: string | User;
+  tenant?: (string | null) | Tenant;
+  lastMessageAt?: string | null;
+  lastMessagePreview?: string | null;
+  lastSenderSide?: ('buyer' | 'store' | 'system') | null;
+  buyerLastReadAt?: string | null;
+  storeLastReadAt?: string | null;
+  deleteAfter?: string | null;
+  /**
+   * Kept (not auto-deleted) while ticked. Untick after the report is resolved.
+   */
+  underReport?: boolean | null;
+  updatedAt: string;
+  createdAt: string;
 }
 /**
  * Invite a seller or rider. Create the seller's store first (Tenants), then pick it here. They get an email to set their own password.
@@ -460,13 +492,35 @@ export interface LegalPage {
 export interface Report {
   id: string;
   status: 'open' | 'resolved' | 'dismissed';
-  targetType: 'product' | 'store';
+  targetType: 'product' | 'store' | 'conversation';
   product?: (string | null) | Product;
   store?: (string | null) | Tenant;
+  conversation?: (string | null) | Conversation;
   reason: 'prohibited' | 'scam' | 'wrong_info' | 'offensive' | 'other';
   note?: string | null;
   reporter?: (string | null) | User;
   adminNote?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "messages".
+ */
+export interface Message {
+  id: string;
+  conversation: string | Conversation;
+  side: 'buyer' | 'store' | 'system';
+  sender?: (string | null) | User;
+  kind: 'text' | 'image' | 'product_ref' | 'system';
+  text?: string | null;
+  image?: (string | null) | PrivateMedia;
+  product?: (string | null) | Product;
+  productSnapshot?: {
+    name?: string | null;
+    price?: number | null;
+    storeSlug?: string | null;
+  };
   updatedAt: string;
   createdAt: string;
 }
@@ -489,7 +543,8 @@ export interface AuditLog {
     | 'store.status_changed'
     | 'store.gcash_qr_approval_changed'
     | 'product.visibility_changed'
-    | 'report.status_changed';
+    | 'report.status_changed'
+    | 'chat.viewed';
   actor?: (string | null) | User;
   targetCollection?: string | null;
   targetId?: string | null;
@@ -571,6 +626,14 @@ export interface PayloadLockedDocument {
         value: string | Report;
       } | null)
     | ({
+        relationTo: 'conversations';
+        value: string | Conversation;
+      } | null)
+    | ({
+        relationTo: 'messages';
+        value: string | Message;
+      } | null)
+    | ({
         relationTo: 'audit-logs';
         value: string | AuditLog;
       } | null);
@@ -622,6 +685,7 @@ export interface PayloadMigration {
  */
 export interface UsersSelect<T extends boolean = true> {
   name?: T;
+  chatName?: T;
   role?: T;
   tenants?:
     | T
@@ -736,6 +800,7 @@ export interface MediaSelect<T extends boolean = true> {
  */
 export interface PrivateMediaSelect<T extends boolean = true> {
   owner?: T;
+  conversation?: T;
   purpose?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -829,10 +894,52 @@ export interface ReportsSelect<T extends boolean = true> {
   targetType?: T;
   product?: T;
   store?: T;
+  conversation?: T;
   reason?: T;
   note?: T;
   reporter?: T;
   adminNote?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "conversations_select".
+ */
+export interface ConversationsSelect<T extends boolean = true> {
+  threadKey?: T;
+  type?: T;
+  buyer?: T;
+  tenant?: T;
+  lastMessageAt?: T;
+  lastMessagePreview?: T;
+  lastSenderSide?: T;
+  buyerLastReadAt?: T;
+  storeLastReadAt?: T;
+  deleteAfter?: T;
+  underReport?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "messages_select".
+ */
+export interface MessagesSelect<T extends boolean = true> {
+  conversation?: T;
+  side?: T;
+  sender?: T;
+  kind?: T;
+  text?: T;
+  image?: T;
+  product?: T;
+  productSnapshot?:
+    | T
+    | {
+        name?: T;
+        price?: T;
+        storeSlug?: T;
+      };
   updatedAt?: T;
   createdAt?: T;
 }
@@ -928,6 +1035,10 @@ export interface Setting {
    * Shown at checkout (built in Phase 5). One point per line (a leading * or - is fine).
    */
   checkoutKeyPoints?: string | null;
+  /**
+   * Messages are deleted this many days after the last message (CLAUDE.md §11.3). Chats under a report are kept until you resolve it.
+   */
+  chatRetentionDays: number;
   updatedAt?: string | null;
   createdAt?: string | null;
 }
@@ -947,6 +1058,7 @@ export interface SettingsSelect<T extends boolean = true> {
   minimumAge?: T;
   signupKeyPoints?: T;
   checkoutKeyPoints?: T;
+  chatRetentionDays?: T;
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;

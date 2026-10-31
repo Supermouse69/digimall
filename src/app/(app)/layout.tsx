@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { TRPCReactProvider } from "@/trpc/client";
 import { Toaster } from "@/components/ui/sonner";
 import {NuqsAdapter} from "nuqs/adapters/next/app";
+import { ChatHead } from "@/modules/chat/ui/chat-head";
 
 
 
@@ -33,6 +34,7 @@ export default function RootLayout({
         <NuqsAdapter> 
         <TRPCReactProvider>
           {children}
+          <ChatHead />
           <Toaster/>
         </TRPCReactProvider>
         </NuqsAdapter>

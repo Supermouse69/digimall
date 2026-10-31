@@ -5,11 +5,12 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { formatCurrency, generateTenantURL } from "@/lib/utils";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { LinkIcon, MessageCircleIcon } from "lucide-react";
+import { LinkIcon } from "lucide-react";
 import dynamic from "next/dynamic";
 import { toast } from "sonner";
 
 import { ReportButton } from "@/modules/reports/ui/report-button";
+import { ChatWithStoreButton } from "@/modules/chat/ui/chat-with-store-button";
 import { StoreBadge } from "@/modules/tenants/ui/components/store-badge";
 
 const CartButton = dynamic(
@@ -131,10 +132,7 @@ export const ProductView = ({ productId, tenantSlug }: ProductViewProps) => {
                     <LinkIcon />
                   </Button>
                 </div>
-                {/* Store chat arrives in Phase 4 */}
-                <Button variant="elevated" disabled className="bg-white" title="Chat is coming soon">
-                  <MessageCircleIcon /> Chat with store (coming soon)
-                </Button>
+                <ChatWithStoreButton storeSlug={tenantSlug} productId={productId} />
               </div>
               <div className="p-6">
                 <ReportButton targetType="product" targetId={productId} />

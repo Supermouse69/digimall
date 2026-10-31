@@ -16,6 +16,7 @@ export const AUDIT_ACTIONS = [
   "store.gcash_qr_approval_changed",
   "product.visibility_changed",
   "report.status_changed",
+  "chat.viewed",
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 

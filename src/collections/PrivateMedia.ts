@@ -1,6 +1,6 @@
 import type { Access, CollectionConfig, Where } from "payload";
 
-import { isSeller, isSuperAdmin } from "@/lib/access";
+import { getUserTenantIds, isSeller, isSuperAdmin } from "@/lib/access";
 import { imageUploadConfig, randomizeUploadFilename } from "@/lib/image-upload";
 import { relationId as ownerId } from "@/lib/private-files";
 import { writeAuditLog } from "@/modules/audit/server/audit-log";
@@ -14,6 +14,7 @@ export const PRIVATE_MEDIA_PURPOSES = [
   "store-permit",
   "store-bir",
   "store-dti-sec",
+  "chat-image",
 ] as const;
 export type PrivateMediaPurpose = (typeof PRIVATE_MEDIA_PURPOSES)[number];
 
@@ -46,7 +47,28 @@ const ownerOrSuperAdmin: Access = async ({ req, data }) => {
     return true;
   }
 
-  return { owner: { equals: req.user.id } } satisfies Where;
+  // Chat photos: the other person in that chat may see them too (buyer <-> store)
+  const chatIds = await myConversationIds(req);
+  const own: Where = { owner: { equals: req.user.id } };
+  return chatIds.length > 0 ? { or: [own, { conversation: { in: chatIds } }] } : own;
+};
+
+// Chats this user is part of: as the buyer, or as the seller of the store
+const myConversationIds = async (req: Parameters<Access>[0]["req"]): Promise<string[]> => {
+  if (!req.user) return [];
+  const tenantIds = getUserTenantIds(req.user);
+  const where: Where =
+    tenantIds.length > 0 ? { tenant: { in: tenantIds } } : { buyer: { equals: req.user.id } };
+  const { docs } = await req.payload.find({
+    collection: "conversations",
+    where,
+    depth: 0,
+    limit: 1000,
+    overrideAccess: true,
+    req,
+    select: {},
+  });
+  return docs.map((doc) => String(doc.id));
 };
 
 // Sensitive files: IDs, licenses, franchise permits, landmark photos (CLAUDE.md §9, §10.8).
@@ -60,7 +82,12 @@ export const PrivateMedia: CollectionConfig = {
     create: ({ req }) => Boolean(req.user && req.user.collection === "users"),
     // No editing: upload a new file instead
     update: ({ req }) => isSuperAdmin(req.user),
-    delete: ownerOrSuperAdmin,
+    // Deleting: only the file's owner (never the other person in a chat) or the super-admin
+    delete: ({ req }) => {
+      if (!req.user || req.user.collection !== "users") return false;
+      if (isSuperAdmin(req.user)) return true;
+      return { owner: { equals: req.user.id } } satisfies Where;
+    },
   },
   admin: {
     useAsTitle: "filename",
@@ -109,6 +136,15 @@ export const PrivateMedia: CollectionConfig = {
         update: () => false,
       },
       admin: { readOnly: true },
+    },
+    {
+      // Chat photos only: set by the chat server code when the photo is sent in a chat
+      name: "conversation",
+      type: "relationship",
+      relationTo: "conversations",
+      index: true,
+      access: { create: () => false, update: () => false },
+      admin: { readOnly: true, condition: (data) => data?.purpose === "chat-image" },
     },
     {
       name: "purpose",

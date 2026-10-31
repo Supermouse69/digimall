@@ -123,13 +123,16 @@ src/
   modules/<feature>/  feature code: server/ (tRPC procedures), ui/ (views, components), hooks, schemas
   modules/bot-protection/ Turnstile check + rate limits (MongoDB counters) for public forms and Payload login
   modules/reports/    minimal report button + reports.create (logged-in users; only the super-admin reads reports)
+  modules/chat/       store chat: chat-service (all membership checks), procedures, chat head + panel UI
+  components/admin/   custom Payload admin components (seller chat head)
   modules/tenants/    store pages: public store data (allowlist), badge, header, stores by barangay
   trpc/               tRPC setup (init, client, server caller, root router)
   payload.config.ts   Payload config (@payload-config alias)
   payload-types.ts    generated — run `bun run generate:types`, don't edit by hand
   seed.ts             dev seed script (writes to the DB — ask first)
 scripts/              checks: `bun run test:access | test:redirects | test:signup | test:emails | test:2fa | test:bot-protection`
-                      DB checks (real dev DB, inside cancelled transactions): `test:invites | test:rider-docs | test:admin-login | test:stores`
+                      DB checks (real dev DB, inside cancelled transactions): `test:invites | test:rider-docs | test:admin-login | test:stores | test:chat`
+                      `chat:cleanup` deletes expired chats (same as the daily /api/cron/chat-cleanup; writes to the DB)
                       `admin:reset-2fa <email> [--new-password]` emergency 2FA reset (writes to the DB)
                       `seed:mock` adds/removes [MOCK] products (writes to the DB)
                       `notes:map` refreshes the Obsidian Code Map notes (§17; writes only to the notes folder)
@@ -160,7 +163,7 @@ Path aliases: `@/*` → `src/*`, `@payload-config` → `src/payload.config.ts`. 
 | Rate-limit counters | Rate limiting on serverless | **Decided 2026-10-31: MongoDB** (`rate_limits` collection, auto-expiring, hashed keys) in `modules/bot-protection`. Upstash Redis stays the upgrade path. | — (Upstash later: `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`) |
 | Web Push (VAPID) | Push notifications | Generate keys locally | `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` |
 | OpenStreetMap tiles | Maps | No account needed | — |
-| Cron protection | Secures scheduled endpoints | — | `CRON_SECRET` |
+| Cron protection | Secures scheduled endpoints | **Added 2026-10-31** (`/api/cron/chat-cleanup`; schedule it in Vercel Cron at deploy) | `CRON_SECRET` |
 | Admin entry | Hidden super-admin login path | — | `ADMIN_ENTRY_PATH` |
 
 Keep `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_ROOT_DOMAIN`, and `NEXT_PUBLIC_ENABLE_SUBDOMAIN_ROUTING=false`. Remove `STRIPE_*`. Adding/removing env vars = ask first. When a phase needs a new account or key, tell the developer exactly what to create and where.
@@ -179,6 +182,7 @@ Keep `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_ROOT_DOMAIN`, and `NEXT_PUBLIC_ENABLE_S
 - Payload admin access is allowed only for `seller` and `super-admin`.
 - **Beta: one role per account.** A store owner who wants to shop uses a separate buyer account.
 - Seller order board + seller chat: build them as custom Payload admin views if practical, otherwise as a seller area in the Next.js app using the same login. Propose the approach before building.
+- **Chat UI (decided 2026-10-31):** a floating **chat head** (bubble + small chat window, like other shopping apps) on every buyer-site page for buyers and sellers, and the same chat head inside the Payload admin for sellers (it shows `/chat?embed=1` in a frame). Full-page fallback at `/chat`.
 
 ## 8. Accounts & onboarding
 
@@ -323,6 +327,7 @@ All durations, limits, and amounts below are **defaults stored in an admin-edita
 - Message kinds: `text`, `image`, `product_ref`, `order_card`, `payment_receipt`, `refund_request`, `refund_qr`, `refund_proof`, `system`.
 - Beta "realtime" = polling with TanStack Query (about every 3–5 s while a chat is open, slower otherwise). A realtime service can come later (suggestion file if needed).
 - Unread badges. Report button on threads/messages → admin queue.
+- **What the store sees about a buyer in chat (decided 2026-10-31):** the buyer's optional **username** (set at sign-up), otherwise the **first name only**.
 - Retention: delete messages **90 days** after the linked order closes (inquiry-only threads: 90 days after the last message), unless the thread is under a report/dispute (keep until resolved). Runs as a daily job.
 - Use custom in-page dialogs, never browser `alert`/`confirm`.
 

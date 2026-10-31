@@ -5,6 +5,8 @@ import { createTRPCRouter, protectedProcedure } from "@/trpc/init";
 import { REPORT_REASONS, REPORT_TARGETS } from "../reasons";
 import { guardRateLimit } from "@/modules/bot-protection/server/guard";
 import { RATE_LIMITS } from "@/modules/bot-protection/server/rate-limit";
+import { relationId } from "@/lib/private-files";
+import { chatActorFor, flagConversationForReport } from "@/modules/chat/server/chat-service";
 
 const reasonValues = REPORT_REASONS.map((reason) => reason.value) as [string, ...string[]];
 
@@ -22,6 +24,34 @@ export const reportsRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       await guardRateLimit(ctx.db, RATE_LIMITS.report, `user:${ctx.user.id}`);
+
+      // A chat: only someone in that chat can report it. It's then kept and readable for the admin.
+      if (input.targetType === "conversation") {
+        const actor = chatActorFor(ctx.user);
+        if (!actor) throw new TRPCError({ code: "NOT_FOUND", message: "We couldn't find that anymore." });
+        const conversation = await flagConversationForReport({ payload: ctx.db }, actor, input.targetId);
+        const { totalDocs } = await ctx.db.count({
+          collection: "reports",
+          where: { and: [{ reporter: { equals: ctx.user.id } }, { status: { equals: "open" } }, { conversation: { equals: conversation.id } }] },
+          overrideAccess: true,
+        });
+        if (totalDocs === 0) {
+          await ctx.db.create({
+            collection: "reports",
+            overrideAccess: true,
+            data: {
+              targetType: "conversation",
+              conversation: conversation.id,
+              store: relationId(conversation.tenant) ?? undefined,
+              reason: input.reason as (typeof REPORT_REASONS)[number]["value"],
+              note: input.note || undefined,
+              reporter: ctx.user.id,
+              status: "open",
+            },
+          });
+        }
+        return { success: true as const };
+      }
 
       const collection = input.targetType === "product" ? "products" : "tenants";
       const target = await ctx.db

@@ -1,6 +1,7 @@
 import z from "zod";
 
 import { isPhMobile, PH_MOBILE_HINT } from "@/lib/ph-phone";
+import { CHAT_NAME_HINT, isValidChatName } from "@/lib/chat-name";
 
 // Used by both the browser form and the server. The server re-checks everything
 // (and also checks the barangay list + delivery area from Settings).
@@ -19,6 +20,13 @@ export const loginSchema = z.object({
 
 export const registerSchema = z.object({
   name: z.string().trim().min(2, "Enter your full name").max(100),
+  // Optional username shown to stores in chat ("" = none)
+  chatName: z
+    .string()
+    .trim()
+    .max(30)
+    .refine((value) => value === "" || isValidChatName(value), CHAT_NAME_HINT)
+    .optional(),
   email: z.email().max(254),
   phone: z.string().trim().refine(isPhMobile, PH_MOBILE_HINT),
   password: z.string().min(10, "Password must be at least 10 characters").max(128),

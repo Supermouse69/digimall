@@ -16,6 +16,8 @@ import { Tenants } from "./collections/Tenants";
 import { LegalPages } from "./collections/LegalPages";
 import { AuditLogs } from "./collections/AuditLogs";
 import { Reports } from "./collections/Reports";
+import { Conversations } from "./collections/Conversations";
+import { Messages } from "./collections/Messages";
 import { Invites } from "./collections/Invites";
 import { PrivateMedia } from "./collections/PrivateMedia";
 import { RiderProfiles } from "./collections/RiderProfiles";
@@ -41,6 +43,10 @@ export default buildConfig({
     importMap: {
       baseDir: path.resolve(dirname),
     },
+    components: {
+      // Sellers' floating chat (chat head) on every admin page; nothing shows for the super-admin
+      providers: ["/components/admin/seller-chat-head#SellerChatHead"],
+    },
   },
   collections: [
     Users,
@@ -53,6 +59,8 @@ export default buildConfig({
     Tenants,
     LegalPages,
     Reports,
+    Conversations,
+    Messages,
     AuditLogs,
   ],
   // Max 5 MB per uploaded file (CLAUDE.md §10.8)

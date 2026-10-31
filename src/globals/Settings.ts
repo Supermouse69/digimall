@@ -10,6 +10,7 @@ export const DEFAULT_BARANGAYS = ["San Marcos", "Balite", "Sergio Bayan", "Bugui
 export const DEFAULT_SERVICE_CENTER = { lat: 14.916, lng: 120.766 };
 export const DEFAULT_SERVICE_RADIUS_KM = 8;
 export const DEFAULT_MINIMUM_AGE = 18;
+export const DEFAULT_CHAT_RETENTION_DAYS = 90;
 
 export const Settings: GlobalConfig = {
   slug: "settings",
@@ -97,6 +98,25 @@ export const Settings: GlobalConfig = {
           defaultValue: "[Developer: write this]",
           admin: {
             description: "Shown at checkout (built in Phase 5). One point per line (a leading * or - is fine).",
+          },
+        },
+      ],
+    },
+    {
+      type: "collapsible",
+      label: "Chat",
+      fields: [
+        {
+          name: "chatRetentionDays",
+          label: "Delete chats after (days)",
+          type: "number",
+          required: true,
+          min: 7,
+          max: 365,
+          defaultValue: DEFAULT_CHAT_RETENTION_DAYS,
+          admin: {
+            description:
+              "Messages are deleted this many days after the last message (CLAUDE.md §11.3). Chats under a report are kept until you resolve it.",
           },
         },
       ],

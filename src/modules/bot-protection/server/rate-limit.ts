@@ -20,6 +20,7 @@ export const RATE_LIMITS = {
   resendVerificationIp: { name: "resend-ip", max: 5, windowMinutes: 60 },
   adminLogin: { name: "admin-login", max: 5, windowMinutes: 15 },
   report: { name: "report", max: 5, windowMinutes: 60 },
+  chatSend: { name: "chat-send", max: 30, windowMinutes: 1 },
 } satisfies Record<string, RateLimitRule>;
 
 const COLLECTION = "rate_limits";

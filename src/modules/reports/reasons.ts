@@ -1,5 +1,5 @@
 // Shared by the Reports collection (server) and the report dialog (browser): no server imports here.
-export const REPORT_TARGETS = ["product", "store"] as const;
+export const REPORT_TARGETS = ["product", "store", "conversation"] as const;
 export type ReportTarget = (typeof REPORT_TARGETS)[number];
 
 export const REPORT_REASONS = [

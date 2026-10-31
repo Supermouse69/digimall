@@ -2,6 +2,7 @@ import type { Payload } from "payload";
 
 import {
   DEFAULT_BARANGAYS,
+  DEFAULT_CHAT_RETENTION_DAYS,
   DEFAULT_MINIMUM_AGE,
   DEFAULT_SERVICE_CENTER,
   DEFAULT_SERVICE_RADIUS_KM,
@@ -15,6 +16,7 @@ export type MarketplaceSettings = {
   minimumAge: number;
   signupKeyPoints: string;
   checkoutKeyPoints: string;
+  chatRetentionDays: number;
 };
 
 // Reads the admin-editable settings, falling back to the defaults until the super-admin saves them.
@@ -32,6 +34,7 @@ export const getSettings = async (payload: Payload): Promise<MarketplaceSettings
     minimumAge: settings?.minimumAge ?? DEFAULT_MINIMUM_AGE,
     signupKeyPoints: settings?.signupKeyPoints ?? "",
     checkoutKeyPoints: settings?.checkoutKeyPoints ?? "",
+    chatRetentionDays: settings?.chatRetentionDays ?? DEFAULT_CHAT_RETENTION_DAYS,
   };
 };
 

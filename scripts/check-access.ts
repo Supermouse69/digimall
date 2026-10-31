@@ -42,7 +42,9 @@ const main = async () => {
     globals: { slug: string; access: Record<string, (a: unknown) => unknown> }[];
   };
   const col = (slug: string) => config.collections.find((c) => c.slug === slug)!;
-  const req = (user: U) => ({ user, payload: {}, context: {} }) as never;
+  // A fake payload: "find" returns one chat for anyone who asks (used by the chat-photo rule)
+  const fakePayload = { find: async () => ({ docs: [{ id: "c-1" }] }) };
+  const req = (user: U) => ({ user, payload: fakePayload, context: {} }) as never;
   const acc = async (slug: string, op: string, user: U, id?: string) =>
     (col(slug).access as Record<string, (a: unknown) => unknown>)[op]!({ req: req(user), id });
   type F = { name?: string; access?: Record<string, (a: unknown) => unknown>; fields?: F[] };
@@ -157,14 +159,16 @@ const main = async () => {
 
   console.log("--- Private files (IDs, licenses, landmark photos) ---");
   check("anonymous: read private files", await acc("private-media", "read", anon), false);
-  check("buyer: read private files (own only)", await acc("private-media", "read", attacker), "where", "u-attacker");
-  check("seller: read private files (own only)", await acc("private-media", "read", seller), "where", "u-seller");
+  check("buyer: read private files (own + photos in own chats)", await acc("private-media", "read", attacker), "where", "u-attacker");
+  check("seller: read private files (own + photos in own chats)", await acc("private-media", "read", seller), "where", '"conversation":{"in":["c-1"]}');
   check("rider: read private files (own only)", await acc("private-media", "read", rider), "where", "u-rider");
   check("admin: read private files", await acc("private-media", "read", admin), true);
   check("anonymous: upload private file", await acc("private-media", "create", anon), false);
   check("rider: upload private file", await acc("private-media", "create", rider), true);
   check("rider: edit a private file", await acc("private-media", "update", rider), false);
   check("buyer: delete private files (own only)", await acc("private-media", "delete", attacker), "where", "u-attacker");
+  check("buyer: delete rule never includes other people's chat photos", JSON.stringify(await acc("private-media", "delete", attacker)).includes("conversation"), false);
+  check("anyone: set which chat a photo belongs to", await fieldAcc("private-media", "conversation", "update", attacker), false);
   check("rider: change a file's owner", await fieldAcc("private-media", "owner", "update", rider), false);
   check("admin: change a file's owner", await fieldAcc("private-media", "owner", "update", admin), false);
   const privateUpload = col("private-media").upload as { mimeTypes?: string[]; staticDir?: string; withMetadata?: boolean };
@@ -204,6 +208,21 @@ const main = async () => {
   for (const name of ["reporter", "reason", "note", "product", "store", "targetType"]) {
     check(`admin: change report ${name} afterwards`, await fieldAcc("reports", name, "update", admin), false);
   }
+
+  console.log("--- Chats (closed to the API; super-admin: reported chats only) ---");
+  for (const slug of ["conversations", "messages"]) {
+    for (const [who, user] of [["anonymous", anon], ["buyer", attacker], ["seller", seller], ["rider", rider]] as const) {
+      check(`${who}: read ${slug} via API`, await acc(slug, "read", user), false);
+      check(`${who}: create ${slug} via API`, await acc(slug, "create", user), false);
+      check(`${who}: update ${slug} via API`, await acc(slug, "update", user), false);
+      check(`${who}: delete ${slug} via API`, await acc(slug, "delete", user), false);
+    }
+    check(`admin: create ${slug} via API`, await acc(slug, "create", admin), false);
+    check(`admin: delete ${slug} via API`, await acc(slug, "delete", admin), false);
+  }
+  check("admin: read chats (reported ones only)", await acc("conversations", "read", admin), "where", '"underReport":{"equals":true}');
+  check("admin: read messages (of reported chats only)", await acc("messages", "read", admin), "where", "conversation.underReport");
+  check("admin: edit message text", await acc("messages", "update", admin), false);
 
   console.log("--- Audit log (append-only) ---");
   check("seller: read audit log", await acc("audit-logs", "read", seller), false);

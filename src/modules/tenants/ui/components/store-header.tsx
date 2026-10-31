@@ -3,10 +3,10 @@
 import Image from "next/image";
 import dynamic from "next/dynamic";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { ClockIcon, MapPinIcon, MessageCircleIcon, StoreIcon } from "lucide-react";
+import { ClockIcon, MapPinIcon, StoreIcon } from "lucide-react";
 
 import { useTRPC } from "@/trpc/client";
-import { Button } from "@/components/ui/button";
+import { ChatWithStoreButton } from "@/modules/chat/ui/chat-with-store-button";
 import { ReportButton } from "@/modules/reports/ui/report-button";
 
 import { StoreBadge } from "./store-badge";
@@ -76,10 +76,7 @@ export const StoreHeader = ({ slug }: { slug: string }) => {
             <div className="text-neutral-600">On DigiMall since {sinceLabel(store.memberSince)}</div>
           </dl>
           <div className="flex flex-wrap items-center gap-4">
-            {/* Store chat arrives in Phase 4 */}
-            <Button variant="elevated" disabled className="bg-white w-fit" title="Chat is coming soon">
-              <MessageCircleIcon /> Chat with store (coming soon)
-            </Button>
+            <ChatWithStoreButton storeSlug={store.slug} className="w-fit" />
             <ReportButton targetType="store" targetId={store.id} />
           </div>
         </div>

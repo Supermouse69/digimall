@@ -18,6 +18,7 @@ import {
   superAdminOrSelf,
 } from "@/lib/access";
 import { USER_ROLES } from "@/modules/auth/roles";
+import { CHAT_NAME_HINT, isValidChatName } from "@/lib/chat-name";
 
 // Only the super-admin can attach a user to a store.
 const defaultTenantArrayField = tenantsArrayField({
@@ -129,6 +130,15 @@ export const Users: CollectionConfig = {
       type: "text",
       required: true,
       maxLength: 100,
+    },
+    {
+      // Optional; stores see this in chat instead of the buyer's name (else the first name only)
+      name: "chatName",
+      label: "Username (optional, shown to stores in chat)",
+      type: "text",
+      maxLength: 30,
+      validate: (value: string | null | undefined) => (!value || isValidChatName(value) ? true : CHAT_NAME_HINT),
+      admin: { condition: (data) => data?.role === "buyer" },
     },
     {
       // Beta: one role per account (a store owner who wants to shop uses a separate buyer account)

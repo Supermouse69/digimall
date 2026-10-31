@@ -50,6 +50,14 @@ export const Reports: CollectionConfig = {
     { name: "product", type: "relationship", relationTo: "products", access: { update: () => false } },
     { name: "store", type: "relationship", relationTo: "tenants", access: { update: () => false } },
     {
+      // Reported chats are kept (not auto-deleted) and become readable for the super-admin (logged)
+      name: "conversation",
+      label: "Chat",
+      type: "relationship",
+      relationTo: "conversations",
+      access: { update: () => false },
+    },
+    {
       name: "reason",
       type: "select",
       required: true,

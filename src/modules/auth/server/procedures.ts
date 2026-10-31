@@ -116,6 +116,7 @@ export const authRouter = createTRPCRouter({
           collection: "users",
           data: {
             name: input.name,
+            chatName: input.chatName || undefined,
             email: input.email,
             phone: normalizePhMobile(input.phone),
             password: input.password, // This will be hashed

@@ -4,6 +4,7 @@ import { distanceKm } from "../src/lib/geo";
 import { isPhMobile, normalizePhMobile } from "../src/lib/ph-phone";
 import { needsConsent } from "../src/modules/legal/server/consents";
 import { registerSchema } from "../src/modules/auth/schemas";
+import { buyerDisplayName } from "../src/lib/chat-name";
 import { isInServiceArea, toKeyPointList, type MarketplaceSettings } from "../src/modules/settings/server/settings";
 
 let failed = 0;
@@ -31,6 +32,7 @@ const settings: MarketplaceSettings = {
   minimumAge: 18,
   signupKeyPoints: "",
   checkoutKeyPoints: "",
+  chatRetentionDays: 90,
 };
 check("center is inside", isInServiceArea(settings, { lat: 14.916, lng: 120.766 }), true);
 check("~3 km away is inside", isInServiceArea(settings, { lat: 14.943, lng: 120.766 }), true);
@@ -76,6 +78,12 @@ check("unticked Privacy fails", registerSchema.safeParse({ ...valid, acceptPriva
 check("unticked age fails", registerSchema.safeParse({ ...valid, confirmAge: false }).success, false);
 check("no map pin fails", registerSchema.safeParse({ ...valid, location: undefined }).success, false);
 check("short password fails", registerSchema.safeParse({ ...valid, password: "short" }).success, false);
+check("no username is fine", registerSchema.safeParse({ ...valid, chatName: "" }).success, true);
+check("username juan_23 ok", registerSchema.safeParse({ ...valid, chatName: "juan_23" }).success, true);
+check("username with spaces fails", registerSchema.safeParse({ ...valid, chatName: "juan dela" }).success, false);
+check("username 'DigiMall_Admin' fails (looks official)", registerSchema.safeParse({ ...valid, chatName: "DigiMall_Admin" }).success, false);
+check("store sees username", buyerDisplayName({ chatName: "juan_23", name: "Juan Dela Cruz" }), "juan_23");
+check("no username: store sees first name only", buyerDisplayName({ chatName: null, name: "Juan Dela Cruz" }), "Juan");
 
 console.log(failed === 0 ? "\nALL PASSED" : `\n${failed} FAILED`);
 process.exit(failed === 0 ? 0 : 1);

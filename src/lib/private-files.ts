@@ -10,7 +10,8 @@ export type PrivateFilePurpose =
   | "store-gcash-qr"
   | "store-permit"
   | "store-bir"
-  | "store-dti-sec";
+  | "store-dti-sec"
+  | "chat-image";
 
 // A relationship value can be an ID or a populated document
 export const relationId = (value: unknown): string | null => {
