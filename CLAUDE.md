@@ -243,7 +243,8 @@ The developer wants DigiMall to be a clean, law-abiding business. When in doubt,
 **BIR / tax**
 - Never generate anything that looks like an official receipt or sales invoice. Order summaries must say **"Order Summary — not an official receipt/invoice."**
 - No feature that helps stores hide sales or fake their registration.
-- Verified tier = BIR Certificate of Registration (Form 2303) + DTI/SEC registration + Mayor's/Business permit (+ barangay clearance), reviewed by the admin.
+- Verified tier (full launch) = BIR Certificate of Registration (Form 2303) + DTI/SEC registration + Mayor's/Business permit (+ barangay clearance), reviewed by the admin.
+- **Beta (developer decision 2026-10-31, see `suggestions/store verification during beta.txt`):** the top badge is **"Business permit checked"** (admin saw the Mayor's/business permit). BIR 2303 / DTI / SEC uploads are optional slots. Never word the badge as more than what was checked. Re-check with a lawyer/accountant before leaving beta.
 - A platform fee setting may exist but stays **0 and hidden**. Don't build fee collection until the developer confirms DigiMall's own registration.
 - Future online payments: verified stores only (payment gateways require business KYC).
 
@@ -300,8 +301,9 @@ All durations, limits, and amounts below are **defaults stored in an admin-edita
 
 ### 11.1 Stores, products, verification tiers
 - Store statuses: `pending` (invisible) → `unverified` or `verified`; `suspended` (hidden, admin-only).
-- **Unverified:** "Unverified store" badge visible to buyers; max **10** products; max **10** orders/day; never featured.
-- **Verified:** admin approved the compliance documents (§9, BIR); "Verified" badge; normal limits.
+- **Unverified:** "Unverified store" badge visible to buyers; never featured. **Beta: no product or order limits** (developer decision 2026-10-31: limits felt unfair during the beta run; revisit at full launch).
+- **Verified:** admin approved the compliance documents (§9). Beta badge: "Business permit checked" (§9).
+- **Merchant info on store pages (decided 2026-10-31):** store name, owner/business name (as on the permit), barangay + general address, map pin, badge, "On DigiMall since <month year>", Chat button. Never shown: permit numbers, TIN, IDs, owner phone/email.
 - Limits are enforced on the server (e.g., Payload hooks), not just in the UI.
 - Store GCash QR: uploaded by the seller, **approved by the admin before use**; any change needs re-approval (prevents QR-swap scams).
 - Products: name, description, price (₱), images, category (from the whitelist), **Available / Not available** toggle (no stock counts). Not-available products show a label and a disabled cart button. The admin can hide any product.
@@ -309,6 +311,7 @@ All durations, limits, and amounts below are **defaults stored in an admin-edita
 ### 11.2 Browsing (buyer site)
 - Home: stores by barangay, categories, search (the tutorial already has search/filtering).
 - Store page `/store/[slug]`: banner, logo, name, barangay, badge, merchant info, product grid (tiles).
+- **No product tags** (tutorial tags filter removed 2026-10-31: categories are enough, and seller tags like "best seller" risk fake urgency).
 - Product page: images, price, availability, **[Add to cart]** and **[Chat with store]**.
 
 ### 11.3 Chat
