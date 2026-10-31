@@ -1,10 +1,9 @@
-import { AuthenticationError, type CollectionConfig, type PayloadRequest } from 'payload'
+import { AuthenticationError, type CollectionConfig } from 'payload'
 import { tenantsArrayField } from "@payloadcms/plugin-multi-tenant/fields";
 
 import { LEGAL_PAGE_SLUGS } from "@/collections/LegalPages";
-import { fromPoint, isValidLatLng } from "@/lib/geo";
 import { isPhMobile, normalizePhMobile, PH_MOBILE_HINT } from "@/lib/ph-phone";
-import { getSettings, isInServiceArea } from "@/modules/settings/server/settings";
+import { validateServiceAreaPin, validateServiceBarangay } from "@/modules/settings/server/validators";
 import { adminResetDisabledTemplate, resetPasswordTemplate, verifyEmailTemplate } from "@/modules/email/templates";
 import { ownPrivateFile } from "@/lib/private-files";
 import { writeAuditLog } from "@/modules/audit/server/audit-log";
@@ -179,11 +178,7 @@ export const Users: CollectionConfig = {
           name: "barangay",
           type: "text",
           maxLength: 60,
-          validate: async (value: string | null | undefined, { req }: { req: PayloadRequest }) => {
-            if (!value) return true;
-            const { barangays } = await getSettings(req.payload);
-            return barangays.includes(value) ? true : "Pick a barangay from our service area.";
-          },
+          validate: validateServiceBarangay,
         },
         {
           name: "addressDetails",
@@ -203,13 +198,7 @@ export const Users: CollectionConfig = {
           name: "location",
           label: "Map pin",
           type: "point",
-          validate: async (value: unknown, { req }: { req: PayloadRequest }) => {
-            if (value === null || value === undefined) return true;
-            const point = fromPoint(value as [number, number]);
-            if (!isValidLatLng(point)) return "Invalid map pin.";
-            const settings = await getSettings(req.payload);
-            return isInServiceArea(settings, point) ? true : "This pin is outside our delivery area.";
-          },
+          validate: validateServiceAreaPin,
         },
       ],
     },

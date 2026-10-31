@@ -1,6 +1,6 @@
 import type { Access, CollectionConfig, Where } from "payload";
 
-import { isSuperAdmin } from "@/lib/access";
+import { isSeller, isSuperAdmin } from "@/lib/access";
 import { imageUploadConfig, randomizeUploadFilename } from "@/lib/image-upload";
 import { relationId as ownerId } from "@/lib/private-files";
 import { writeAuditLog } from "@/modules/audit/server/audit-log";
@@ -10,6 +10,10 @@ export const PRIVATE_MEDIA_PURPOSES = [
   "rider-license",
   "rider-franchise",
   "landmark",
+  "store-gcash-qr",
+  "store-permit",
+  "store-bir",
+  "store-dti-sec",
 ] as const;
 export type PrivateMediaPurpose = (typeof PRIVATE_MEDIA_PURPOSES)[number];
 
@@ -61,7 +65,8 @@ export const PrivateMedia: CollectionConfig = {
   admin: {
     useAsTitle: "filename",
     defaultColumns: ["filename", "purpose", "owner", "createdAt"],
-    hidden: ({ user }) => !isSuperAdmin(user),
+    // Sellers need it for uploading their GCash QR / store documents (they only ever see their own files)
+    hidden: ({ user }) => !isSuperAdmin(user) && !isSeller(user),
   },
   hooks: {
     beforeOperation: [randomizeUploadFilename],
@@ -111,6 +116,10 @@ export const PrivateMedia: CollectionConfig = {
       required: true,
       options: [...PRIVATE_MEDIA_PURPOSES],
       access: { update: () => false },
+      admin: {
+        description:
+          "What this file is for. Store files: store-gcash-qr, store-permit (business permit or barangay clearance), store-bir, store-dti-sec.",
+      },
     },
   ],
 };

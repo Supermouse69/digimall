@@ -74,7 +74,6 @@ export interface Config {
     'private-media': PrivateMedia;
     categories: Category;
     products: Product;
-    tags: Tag;
     tenants: Tenant;
     'legal-pages': LegalPage;
     'audit-logs': AuditLog;
@@ -96,7 +95,6 @@ export interface Config {
     'private-media': PrivateMediaSelect<false> | PrivateMediaSelect<true>;
     categories: CategoriesSelect<false> | CategoriesSelect<true>;
     products: ProductsSelect<false> | ProductsSelect<true>;
-    tags: TagsSelect<false> | TagsSelect<true>;
     tenants: TenantsSelect<false> | TenantsSelect<true>;
     'legal-pages': LegalPagesSelect<false> | LegalPagesSelect<true>;
     'audit-logs': AuditLogsSelect<false> | AuditLogsSelect<true>;
@@ -227,14 +225,51 @@ export interface User {
 export interface Tenant {
   id: string;
   /**
-   * This is the name of the store (e.g. Antonio's Store)
+   * This is the name of the store (e.g. Aling Nena's Sari-Sari Store)
    */
   name: string;
   /**
-   * Used in the store's web address. Only the super-admin can change it.
+   * Used in the store's web address (/store/<slug>). Only the super-admin can change it.
    */
   slug: string;
-  image?: (string | null) | Media;
+  /**
+   * Pending and suspended stores are hidden from buyers. "Business permit checked" = you saw their Mayor's/business permit or barangay business clearance.
+   */
+  status: 'pending' | 'unverified' | 'verified' | 'suspended';
+  verifiedAt?: string | null;
+  verifiedBy?: (string | null) | User;
+  ownerName?: string | null;
+  description?: string | null;
+  /**
+   * Must be one of the barangays in Settings.
+   */
+  barangay?: string | null;
+  addressDetails?: string | null;
+  /**
+   * Longitude, latitude. Must be inside the delivery area.
+   *
+   * @minItems 2
+   * @maxItems 2
+   */
+  location?: [number, number] | null;
+  hours?: string | null;
+  logo?: (string | null) | Media;
+  banner?: (string | null) | Media;
+  /**
+   * Buyers never see this (they use chat). Riders see it during a trip.
+   */
+  phone?: string | null;
+  /**
+   * Upload as a private file with purpose "store-gcash-qr". Changing it needs the super-admin's approval again.
+   */
+  gcashQr?: (string | null) | PrivateMedia;
+  /**
+   * Super-admin only. Turns off by itself when the QR changes.
+   */
+  gcashQrApproved?: boolean | null;
+  businessPermit?: (string | null) | PrivateMedia;
+  birCertificate?: (string | null) | PrivateMedia;
+  dtiSecRegistration?: (string | null) | PrivateMedia;
   updatedAt: string;
   createdAt: string;
 }
@@ -264,7 +299,18 @@ export interface Media {
 export interface PrivateMedia {
   id: string;
   owner?: (string | null) | User;
-  purpose: 'rider-photo' | 'rider-license' | 'rider-franchise' | 'landmark';
+  /**
+   * What this file is for. Store files: store-gcash-qr, store-permit (business permit or barangay clearance), store-bir, store-dti-sec.
+   */
+  purpose:
+    | 'rider-photo'
+    | 'rider-license'
+    | 'rider-franchise'
+    | 'landmark'
+    | 'store-gcash-qr'
+    | 'store-permit'
+    | 'store-bir'
+    | 'store-dti-sec';
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -351,24 +397,24 @@ export interface Product {
   name: string;
   description?: string | null;
   /**
-   * Price in PHP
+   * Whole pesos only, e.g. 25 (not 24.50).
    */
   price: number;
-  category?: (string | null) | Category;
-  tags?: (string | Tag)[] | null;
+  category: string | Category;
   image?: (string | null) | Media;
   cover?: (string | null) | Media;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "tags".
- */
-export interface Tag {
-  id: string;
-  name: string;
-  products?: (string | Product)[] | null;
+  /**
+   * Untick when you don't have it right now. Buyers see "Not available".
+   */
+  isAvailable?: boolean | null;
+  /**
+   * Super-admin only: takes the product off the site (e.g. a prohibited item or a report).
+   */
+  isHidden?: boolean | null;
+  /**
+   * The seller can see this.
+   */
+  hiddenReason?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -418,7 +464,11 @@ export interface AuditLog {
     | 'admin.login'
     | 'admin.login_failed'
     | 'admin.2fa_enabled'
-    | 'admin.2fa_reset';
+    | 'admin.2fa_reset'
+    | 'store.status_changed'
+    | 'store.gcash_qr_approval_changed'
+    | 'product.visibility_changed'
+    | 'report.status_changed';
   actor?: (string | null) | User;
   targetCollection?: string | null;
   targetId?: string | null;
@@ -486,10 +536,6 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'products';
         value: string | Product;
-      } | null)
-    | ({
-        relationTo: 'tags';
-        value: string | Tag;
       } | null)
     | ({
         relationTo: 'tenants';
@@ -701,19 +747,11 @@ export interface ProductsSelect<T extends boolean = true> {
   description?: T;
   price?: T;
   category?: T;
-  tags?: T;
   image?: T;
   cover?: T;
-  updatedAt?: T;
-  createdAt?: T;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "tags_select".
- */
-export interface TagsSelect<T extends boolean = true> {
-  name?: T;
-  products?: T;
+  isAvailable?: T;
+  isHidden?: T;
+  hiddenReason?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -724,7 +762,23 @@ export interface TagsSelect<T extends boolean = true> {
 export interface TenantsSelect<T extends boolean = true> {
   name?: T;
   slug?: T;
-  image?: T;
+  status?: T;
+  verifiedAt?: T;
+  verifiedBy?: T;
+  ownerName?: T;
+  description?: T;
+  barangay?: T;
+  addressDetails?: T;
+  location?: T;
+  hours?: T;
+  logo?: T;
+  banner?: T;
+  phone?: T;
+  gcashQr?: T;
+  gcashQrApproved?: T;
+  businessPermit?: T;
+  birCertificate?: T;
+  dtiSecRegistration?: T;
   updatedAt?: T;
   createdAt?: T;
 }

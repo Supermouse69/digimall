@@ -59,3 +59,14 @@ export const superAdminOrOwnTenant =
 
 export const superAdminOrStoreMember: Access = ({ req }) =>
   isSuperAdmin(req.user) || hasTenant(req.user);
+
+// Store fields only the store's own seller and the super-admin may see (phone, GCash QR, documents).
+// Used as field-level READ access on the tenants collection, so they never reach the public API.
+export const superAdminOrOwnStoreField: FieldAccess = ({ req, doc, id }) => {
+  if (isSuperAdmin(req.user)) return true;
+  const storeId = (doc as { id?: unknown } | undefined)?.id ?? id;
+  return storeId !== undefined && getUserTenantIds(req.user).includes(String(storeId));
+};
+
+// Store statuses buyers can see. Pending and suspended stores are hidden everywhere public.
+export const PUBLIC_STORE_STATUSES = ["unverified", "verified"] as const;

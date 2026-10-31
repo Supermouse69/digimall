@@ -12,6 +12,10 @@ export const AUDIT_ACTIONS = [
   "admin.login_failed",
   "admin.2fa_enabled",
   "admin.2fa_reset",
+  "store.status_changed",
+  "store.gcash_qr_approval_changed",
+  "product.visibility_changed",
+  "report.status_changed",
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 

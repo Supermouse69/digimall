@@ -15,9 +15,11 @@ export const tenantsRouter = createTRPCRouter({
     .query(async ({ ctx, input }) => {
       
 
+      // overrideAccess: false = only approved stores, and no private fields (phone, QR, documents)
       const tenantsData = await ctx.db.find({
         collection: "tenants",
         depth:1,
+        overrideAccess: false,
         where:{
             slug:{
                 equals:input.slug,
@@ -30,10 +32,8 @@ export const tenantsRouter = createTRPCRouter({
       const tenant = tenantsData.docs[0];
 
       if(!tenant){
-        throw new TRPCError({ code: "NOT_FOUND" , message: "Tenant not found"});
+        throw new TRPCError({ code: "NOT_FOUND" , message: "Store not found"});
       }
-      //Artificial delay for dev/testing
-      //await new Promise((resolve) => setTimeout(resolve,5000));
-      return tenant as Tenant & {image: Media | null};
+      return tenant as Tenant & { logo: Media | null; banner: Media | null };
     }),
 });

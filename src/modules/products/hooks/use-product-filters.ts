@@ -1,4 +1,4 @@
-import { useQueryStates, parseAsString, parseAsArrayOf, parseAsStringLiteral } from "nuqs";
+import { useQueryStates, parseAsString, parseAsStringLiteral } from "nuqs";
 
 const sortValues = ["curated", "trending", "hot_and_new"] as const;
 
@@ -14,11 +14,6 @@ const params = {
       clearOnDefault: true,
     })
     .withDefault(""),
-  tags: parseAsArrayOf(parseAsString)
-    .withOptions({
-      clearOnDefault: true,
-    })
-    .withDefault([]),
 };
 
 export const useProductFilters = () => {

@@ -1,4 +1,5 @@
 import z from "zod";
+import { TRPCError } from "@trpc/server";
 import type { Sort, Where } from "payload";
 
 import { Category, Media, Tenant } from "@/payload-types";
@@ -15,16 +16,17 @@ export const productsRouter = createTRPCRouter({
     })
   )
   .query(async({ctx,input}) => {
-    const product =await ctx.db.findByID({
-      collection: "products",
-      id: input.id,
-      depth:2,
-    });
+    // overrideAccess: false = the public access rules apply (no hidden products, no hidden stores,
+    // and the store's private fields are left out of the populated tenant)
+    const product = await ctx.db
+      .findByID({ collection: "products", id: input.id, depth: 2, overrideAccess: false })
+      .catch(() => null);
+    if (!product) throw new TRPCError({ code: "NOT_FOUND", message: "Product not found" });
     return {
       ...product,
       image:product.image as Media | null,
       cover:product.cover as Media | null,// added cover for diffrent picture for inside item shop vs slection item card/product card
-      tenant:product.tenant as Tenant & {image:Media | null},
+      tenant:product.tenant as Tenant & {logo:Media | null},
     }
   }),
   getMany: baseProcedure
@@ -35,7 +37,6 @@ export const productsRouter = createTRPCRouter({
         category: z.string().nullable().optional(),
         minPrice: z.string().nullable().optional(),
         maxPrice: z.string().nullable().optional(),
-        tags: z.array(z.string()).nullable().optional(),
         sort: z.enum(sortValues).nullable().optional(),
         tenantSlug: z.string().nullable().optional(),
       }),
@@ -77,13 +78,6 @@ export const productsRouter = createTRPCRouter({
         };
       }
 
-
-
-
-
-
-
-
       if (input.category) {
         const categoriesData = await ctx.db.find({
           collection: "categories",
@@ -120,12 +114,6 @@ export const productsRouter = createTRPCRouter({
         }
       }
 
-      if (input.tags && input.tags.length > 0) {
-        where["tags.name"] = {
-          in: input.tags,
-        };
-      }
-
       const data = await ctx.db.find({
         collection: "products",
         depth: 2, // Populate "category" & "image",
@@ -133,13 +121,14 @@ export const productsRouter = createTRPCRouter({
         sort,
         page:input.cursor,
         limit:input.limit,
+        overrideAccess: false, // public rules: see getOne
       });
        return {
         ...data,
         docs: data.docs.map((doc) => ({
           ...doc,
           image: doc.image as Media | null,
-          tenant: doc.tenant as Tenant & { image: Media | null },
+          tenant: doc.tenant as Tenant & { logo: Media | null },
         }))
       }
     }),

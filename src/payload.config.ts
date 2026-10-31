@@ -12,7 +12,6 @@ import { Categories } from "./collections/Categories";
 import { Media } from "./collections/Media";
 import { Users } from "./collections/Users";
 import { Products } from "./collections/Products";
-import { Tags } from "./collections/Tags";
 import { Tenants } from "./collections/Tenants";
 import { LegalPages } from "./collections/LegalPages";
 import { AuditLogs } from "./collections/AuditLogs";
@@ -50,7 +49,6 @@ export default buildConfig({
     PrivateMedia,
     Categories,
     Products,
-    Tags,
     Tenants,
     LegalPages,
     AuditLogs,

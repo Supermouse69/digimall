@@ -2,7 +2,15 @@ import type { PayloadRequest } from "payload";
 
 import { isSuperAdmin } from "@/lib/access";
 
-export type PrivateFilePurpose = "rider-photo" | "rider-license" | "rider-franchise" | "landmark";
+export type PrivateFilePurpose =
+  | "rider-photo"
+  | "rider-license"
+  | "rider-franchise"
+  | "landmark"
+  | "store-gcash-qr"
+  | "store-permit"
+  | "store-bir"
+  | "store-dti-sec";
 
 // A relationship value can be an ID or a populated document
 export const relationId = (value: unknown): string | null => {

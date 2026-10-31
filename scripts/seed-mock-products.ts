@@ -73,6 +73,13 @@ const run = async () => {
     return;
   }
 
+  // Every product needs a category (the admin-managed whitelist); mock items use the first one
+  const category = (await payload.find({ collection: "categories", sort: "name", limit: 1, depth: 0 })).docs[0];
+  if (!category) {
+    console.log("No categories yet. Run the seed or add one in the admin panel first.");
+    return;
+  }
+
   for (const [slug, items] of Object.entries(MOCK_PRODUCTS)) {
     const tenant = (
       await payload.find({ collection: "tenants", where: { slug: { equals: slug } }, limit: 1 })
@@ -110,6 +117,7 @@ const run = async () => {
           image: image.id,
           cover: image.id,
           tenant: tenant.id,
+          category: category.id,
         },
       });
       console.log(`  ${slug}: added "${item.name}" (₱${item.price})`);

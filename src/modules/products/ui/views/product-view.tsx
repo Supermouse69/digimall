@@ -62,9 +62,9 @@ export const ProductView = ({ productId, tenantSlug }: ProductViewProps) => {
                   href={generateTenantURL(tenantSlug)}
                   className="flex items-center gap-2"
                 >
-                  {data.tenant.image?.url && (
+                  {data.tenant.logo?.url && (
                     <Image
-                      src={data.tenant.image.url}
+                      src={data.tenant.logo.url}
                       alt={data.tenant.name}
                       width={20}
                       height={20}

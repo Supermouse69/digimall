@@ -26,7 +26,7 @@ await initTransaction(req);
 try {
   const store = await payload.create({
     collection: "tenants",
-    data: { name: "Invite Test Store", slug: `invite-test-${STAMP}` },
+    data: { name: "Invite Test Store", slug: `invite-test-${STAMP}`, status: "pending" },
     req,
   });
 

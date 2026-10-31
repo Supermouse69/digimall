@@ -147,6 +147,7 @@ const seed = async () => {
     data: {
       name: "admin",
       slug: "admin",
+      status: "pending", // the admin's own placeholder store is never shown to buyers
     },
   });
 
