@@ -50,6 +50,8 @@ export default buildConfig({
     components: {
       // Sellers' floating chat (chat head) on every admin page; nothing shows for the super-admin
       providers: ["/components/admin/seller-chat-head#SellerChatHead"],
+      // Super-admin to-do queues on the dashboard (nothing shows for sellers)
+      beforeDashboard: ["/components/admin/admin-desk#AdminDesk"],
     },
   },
   collections: [

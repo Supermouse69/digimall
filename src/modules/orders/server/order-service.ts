@@ -1,6 +1,8 @@
 import { randomInt } from "crypto";
 import { TRPCError } from "@trpc/server";
-import { commitTransaction, createLocalReq, initTransaction, killTransaction, type Where } from "payload";
+import { commitTransaction, killTransaction, type Where } from "payload";
+
+import { startTransaction } from "@/lib/transaction";
 
 import { PUBLIC_STORE_STATUSES } from "@/lib/access";
 import { fromPoint, isValidLatLng, toPoint, type LatLng } from "@/lib/geo";
@@ -54,8 +56,7 @@ const isPublicStore = (store: Tenant | null | undefined) =>
 // Runs `fn` in ONE database transaction (all or nothing), unless the caller already has one (tests)
 const inTransaction = async <T>(ctx: ChatCtx, fn: (ctx: ChatCtx) => Promise<T>): Promise<T> => {
   if (ctx.req) return fn(ctx);
-  const req = await createLocalReq({}, ctx.payload);
-  await initTransaction(req);
+  const req = await startTransaction(ctx.payload);
   try {
     const result = await fn({ payload: ctx.payload, req });
     await commitTransaction(req);

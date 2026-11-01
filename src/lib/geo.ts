@@ -27,5 +27,6 @@ export const isValidLatLng = (value: unknown): value is LatLng => {
 
 // Payload "point" fields store [longitude, latitude]
 export const toPoint = ({ lat, lng }: LatLng): [number, number] => [lng, lat];
+// Anything that isn't a real [lng, lat] pair (empty pins can be stored as {}) means "no pin"
 export const fromPoint = (point: [number, number] | null | undefined): LatLng | null =>
-  point ? { lat: point[1], lng: point[0] } : null;
+  Array.isArray(point) && typeof point[0] === "number" && typeof point[1] === "number" ? { lat: point[1], lng: point[0] } : null;

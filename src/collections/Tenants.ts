@@ -12,6 +12,7 @@ import {
 import { isPhMobile, normalizePhMobile, PH_MOBILE_HINT } from "@/lib/ph-phone";
 import { ownPrivateFile, relationId } from "@/lib/private-files";
 import { writeAuditLog } from "@/modules/audit/server/audit-log";
+import { storeChangeNotices } from "@/modules/notifications/server/approval-notices";
 import { validateServiceAreaPin, validateServiceBarangay } from "@/modules/settings/server/validators";
 
 export const STORE_STATUSES = ["pending", "unverified", "verified", "suspended"] as const;
@@ -84,6 +85,8 @@ export const Tenants: CollectionConfig = {
             details: { approved: Boolean(doc.gcashQrApproved) },
           });
         }
+        // Tell the seller (live / permit checked / suspended / QR approved); never blocks the save
+        if (operation === "update") await storeChangeNotices(req, doc, previousDoc).catch(() => undefined);
         return doc;
       },
     ],

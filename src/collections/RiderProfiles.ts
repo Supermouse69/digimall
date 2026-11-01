@@ -3,6 +3,7 @@ import type { Access, CollectionConfig, Where } from "payload";
 import { isSuperAdmin, superAdminOnly, superAdminOnlyField } from "@/lib/access";
 import { ownPrivateFile, relationId } from "@/lib/private-files";
 import { writeAuditLog } from "@/modules/audit/server/audit-log";
+import { riderChangeNotices } from "@/modules/notifications/server/approval-notices";
 
 export const RIDER_STATUSES = ["pending", "approved", "suspended"] as const;
 
@@ -57,6 +58,8 @@ export const RiderProfiles: CollectionConfig = {
             targetId: doc.id,
             details: { from: previousDoc?.status, to: doc.status },
           });
+          // Tell the rider (approved / on hold / re-check); never blocks the save
+          await riderChangeNotices(req, doc, previousDoc).catch(() => undefined);
         }
         return doc;
       },

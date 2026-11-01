@@ -109,3 +109,15 @@ export const orderPlacedTemplate = ({ name, code, storeCount }: { name?: unknown
     footer: "Order Summary — not an official receipt/invoice. The delivery fee is paid in cash to your rider.",
   }),
 });
+
+// Short account notices (store/rider approved, GCash QR approved, suspended)
+export const noticeTemplate = ({ name, subject, heading, intro, buttonLabel, path }: { name?: unknown; subject: string; heading: string; intro: string; buttonLabel: string; path: string }) => ({
+  subject,
+  html: layout({
+    heading: `Hi ${firstName(name)}, ${heading}`,
+    intro,
+    buttonLabel,
+    url: appUrl(path),
+    footer: "You get this email because of a change to your DigiMall account.",
+  }),
+});

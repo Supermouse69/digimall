@@ -120,6 +120,7 @@ src/
   lib/image-upload.ts upload rules for every image (types, re-encode, EXIF strip, random names)
   lib/private-files.ts "you can only attach your own private file" check
   lib/utils.ts        cn(), formatCurrency(), URL helpers
+  lib/transaction.ts  startTransaction(): use this for server-side transactions (avoids a MongoDB first-command race)
   modules/<feature>/  feature code: server/ (tRPC procedures), ui/ (views, components), hooks, schemas
   modules/bot-protection/ Turnstile check + rate limits (MongoDB counters) for public forms and Payload login
   modules/reports/    minimal report button + reports.create (logged-in users; only the super-admin reads reports)
@@ -129,14 +130,15 @@ src/
   modules/trips/      rider booking + trips: trip-service (who sees what before/during/after), procedures
   modules/notifications/ web push (VAPID): push.ts is the ONE place that sends notifications; push toggle UI
   modules/riders/     rider portal (documents until approved, then Active / requests / trip / history)
-  components/admin/   custom Payload admin components (seller chat head)
+  components/admin/   custom Payload admin components (seller chat/orders bubbles, super-admin Admin desk on the dashboard)
+  modules/admin-desk/ the super-admin to-do queues (counts + links to filtered admin lists)
   modules/tenants/    store pages: public store data (allowlist), badge, header, stores by barangay
   trpc/               tRPC setup (init, client, server caller, root router)
   payload.config.ts   Payload config (@payload-config alias)
   payload-types.ts    generated — run `bun run generate:types`, don't edit by hand
   seed.ts             dev seed script (writes to the DB — ask first)
 scripts/              checks: `bun run test:access | test:redirects | test:signup | test:emails | test:2fa | test:bot-protection | test:order-rules`
-                      DB checks (real dev DB, inside cancelled transactions): `test:invites | test:rider-docs | test:admin-login | test:stores | test:chat | test:orders | test:trips | test:refunds`
+                      DB checks (real dev DB, inside cancelled transactions): `test:invites | test:rider-docs | test:admin-login | test:stores | test:chat | test:orders | test:trips | test:refunds | test:admin-desk`
                       `orders:timers` runs the order/refund timers + reminders now (same as /api/cron/order-timers; writes to the DB)
                       `test:order-rules` checks the order state machine (no DB)
                       `chat:cleanup` deletes expired chats (same as the daily /api/cron/chat-cleanup; writes to the DB)
@@ -151,6 +153,7 @@ suggestions/check_phase4/ Phase 4 (chat) check list for the developer
 suggestions/check_phase5/ Phase 5 (cart + checkout) check list for the developer
 suggestions/check_phase6/ Phase 6 (riders + trips + push) check list for the developer
 suggestions/check_phase7/ Phase 7 (cancellations + refunds) check list for the developer
+suggestions/check_phase8/ Phase 8 (admin tools) check list for the developer
 media/                local public uploads, gitignored (moves to Vercel Blob later)
 private-media/        local PRIVATE uploads (IDs, licenses, landmark photos), gitignored (Vercel Private Blob later)
 backups/              local DB backups made before migrations, gitignored (contain personal data)

@@ -77,3 +77,21 @@ export const sellerIdsOfStore = async ({ payload, req }: { payload: Payload; req
   });
   return docs.map((user) => user.id);
 };
+
+// Push + a short email (for important account changes like approvals). Never throws.
+export const notifyUsers = async (
+  ctx: { payload: Payload; req?: PayloadRequest },
+  userIds: string[],
+  message: PushMessage & { email?: { subject: string; html: (name: string | null) => string } },
+) => {
+  await pushToUsers(ctx, userIds, message);
+  if (!message.email) return;
+  for (const id of [...new Set(userIds)]) {
+    try {
+      const user = await ctx.payload.findByID({ collection: "users", id, depth: 0, overrideAccess: true, req: ctx.req });
+      await ctx.payload.sendEmail({ to: user.email, subject: message.email.subject, html: message.email.html(user.name ?? null) });
+    } catch (error) {
+      ctx.payload.logger.warn(`notice email not sent: ${(error as Error).message}`);
+    }
+  }
+};

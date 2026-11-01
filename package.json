@@ -27,6 +27,7 @@
     "orders:timers": "tsx --env-file=.env scripts/order-timers.ts",
     "chat:cleanup": "tsx --env-file=.env scripts/chat-cleanup.ts",
     "test:order-rules": "tsx scripts/check-order-rules.ts",
+    "test:admin-desk": "tsx --env-file=.env scripts/check-admin-desk.ts",
     "test:refunds": "tsx --env-file=.env scripts/check-refunds.ts",
     "test:trips": "tsx --env-file=.env scripts/check-trips.ts",
     "test:orders": "tsx --env-file=.env scripts/check-orders.ts",
