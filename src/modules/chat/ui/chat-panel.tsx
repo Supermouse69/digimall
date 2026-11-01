@@ -12,6 +12,8 @@ import { cn, formatCurrency, generateTenantURL } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ReportButton } from "@/modules/reports/ui/report-button";
 
+import { OrderCard } from "@/modules/orders/ui/order-card";
+
 import type { ChatTarget } from "./chat-widget-store";
 
 // Polling = "realtime" for the beta (CLAUDE.md §11.3): every 4 s while a chat is open and the
@@ -252,7 +254,12 @@ const ThreadView = ({ initialConversationId, storeSlug, productId, onBack, onClo
           <p className="text-center text-sm text-neutral-600 py-6">Ask the store anything, like whether an item is available.</p>
         )}
         {thread.data?.messages.map((message) =>
-          message.side === "system" ? (
+          message.kind === "order_card" && message.storeOrderId ? (
+            // Live order card with the right buttons for the buyer or the store (Phase 5)
+            <div key={message.id} className="self-stretch">
+              <OrderCard storeOrderId={message.storeOrderId} compact />
+            </div>
+          ) : message.side === "system" ? (
             <p key={message.id} className="text-center text-xs text-neutral-500">{message.text}</p>
           ) : (
             <div key={message.id} className={cn("max-w-[80%] flex flex-col gap-1", message.mine ? "self-end items-end" : "self-start items-start")}>

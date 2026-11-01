@@ -1,0 +1,111 @@
+Title: CHECK PHASE 5: cart, checkout, orders, manual GCash
+Date: 2026-11-01
+Status: not checked yet by the developer
+Branch: phase-3-stores-products (Phases 3–5 are on the same branch)
+
+BEFORE YOU START
+- Stop and restart `bun run dev` (new collections: Orders, Store orders, Fares).
+- You need: 1 BUYER account (with phone, barangay and map pin from sign-up) and the SELLER
+  accounts of 2 stores. Two browsers (or normal + incognito).
+- SET UP FIRST, as super-admin (hidden admin entry):
+   [ ] 0.1 Settings -> "Orders + timers": check the numbers (max 3 stores, 10 min to confirm,
+           10 min to pay, 30 min payment-check flag, ₱0 per extra stop). Change if you like
+   [ ] 0.2 Settings -> "Checkout box: Quick reminders": paste YOUR checkout text (it still says
+           "[Developer: write this]")
+   [ ] 0.3 Fares -> add rows for your routes, e.g. From "San Marcos" To "San Marcos":
+           Casual 30, Fast 50 (use the rider organization's real rates)
+   [ ] 0.4 Make sure the test stores have a barangay (store settings)
+   [ ] 0.5 GCash QR: for store #1, the seller uploads a QR (Private files, purpose
+           "store-gcash-qr", then pick it in the store), and you tick "GCash QR approved".
+           Leave store #2 WITHOUT an approved QR for test 3.2
+- If something fails: write down the step number, what you clicked and the exact message.
+
+==================================================================
+PART 1: CART
+==================================================================
+ [ ] 1.1 Product page -> "Add to cart" -> "Added to cart". Button becomes "In cart (1) · View cart" + "Remove"
+ [ ] 1.2 Navbar (logged in as buyer) has "My orders" and "Cart"
+ [ ] 1.3 /cart groups items by store, with − / + buttons (max 20) and a trash button
+ [ ] 1.4 "Remove store" removes that store's items
+ [ ] 1.5 Add items from 3 different stores, then try a 4th -> friendly message
+         "You can order from up to 3 stores at a time..."
+ [ ] 1.6 A product set to "Not available" shows a red note in the cart and blocks checkout
+ [ ] 1.7 Logged out: the cart still works. "Check out" asks you to log in, then brings you back
+
+==================================================================
+PART 2: CHECKOUT
+==================================================================
+ [ ] 2.1 /checkout shows: Casual / Fast choice, barangay, street/purok, the map pin (your
+         profile's pin), note for the rider, each store's items + a note box per store
+ [ ] 2.2 "Estimated delivery fee": Casual = your fare, Fast = your fast fare.
+         With 2 stores: + the extra-stop fee from Settings. Route without a fare row:
+         "Rider will tell you"
+ [ ] 2.3 Your "Quick reminders" text shows in a yellow box (after step 0.2)
+ [ ] 2.4 It says "Order Summary — not an official receipt/invoice" and "No convenience fee"
+ [ ] 2.5 Move the pin far outside the area -> red message, can't place the order
+ [ ] 2.6 "Place order" -> goes to /orders/DM-XXXX. The code has no 0, O, 1 or I
+ [ ] 2.7 The cart is empty for those stores afterwards
+ [ ] 2.8 The terminal (bun run dev) prints an email "DigiMall order DM-XXXX placed" with a link
+
+==================================================================
+PART 3: STORE CONFIRMS (seller window)
+==================================================================
+ [ ] 3.1 Admin panel: the 📦 bubble (above 💬) shows a number. Tap it -> the Orders board:
+         a tile with 🔴 URGENT · FAST or 🟢 CASUAL, the code, "Waiting for the store",
+         the buyer's name, total, time
+ [ ] 3.2 Store #2 (no approved QR) taps "Confirm order" -> refused: "Your GCash QR isn't approved yet..."
+ [ ] 3.3 💬 chat: the buyer's chat shows the ORDER CARD with the same buttons
+ [ ] 3.4 The store sees the buyer's name + barangay, NOT the street/pin/phone
+ [ ] 3.5 Store #1 taps "Confirm order" -> the buyer's order says "Waiting for your GCash payment"
+         with a countdown, and the chat says "The store confirmed..."
+ [ ] 3.6 "Cancel order" asks for a reason in a pop-up (not a browser alert). Empty = can't send
+
+==================================================================
+PART 4: BUYER PAYS (buyer window)
+==================================================================
+ [ ] 4.1 The order page shows store #1's GCash QR picture + "Upload receipt screenshot"
+ [ ] 4.2 Type a reference number (optional), upload a screenshot -> "Payment sent: store is
+         checking". The countdown disappears (no auto-cancel after paying)
+ [ ] 4.3 The receipt appears in the chat for the store
+ [ ] 4.4 "Cancel" is gone now (paid orders can't be cancelled yet; refunds come in Phase 7)
+ [ ] 4.5 (Seller) "Not received" -> the buyer sees "⚠️ The store says this payment hasn't arrived"
+ [ ] 4.6 (Seller) "Payment received" -> "Paid: store is preparing". The QR disappears for the buyer
+ [ ] 4.7 When EVERY store in the order is paid (or the unpaid ones were cancelled):
+         a green box "Every store is paid. You can book a rider now" + "Book rider (coming soon)"
+ [ ] 4.8 Wait 30+ minutes after a receipt without the seller checking -> the tile shows
+         "⚠️ Check payment" (that's the flag; the admin queue comes in Phase 8)
+
+==================================================================
+PART 5: TIMERS + CANCEL
+==================================================================
+ [ ] 5.1 Place an order and DON'T confirm it for 10 minutes -> it shows "Expired (store didn't
+         answer)" and the chat says why. A 1-store order becomes "Cancelled"
+ [ ] 5.2 Confirm one, but DON'T pay for 10 minutes -> "Cancelled" ("Not paid within 10 minutes")
+ [ ] 5.3 Buyer: "Cancel this store" on one store of a 2-store order -> only that store cancels
+ [ ] 5.4 Buyer: "Cancel the whole order" -> every unpaid store cancels. Paid stores stay
+ [ ] 5.5 Tip for fast testing: set the minutes in Settings to 1, then back to 10
+
+==================================================================
+PART 6: PRIVACY
+==================================================================
+ [ ] 6.1 Another buyer opening /orders/<your code> -> "Order not found"
+ [ ] 6.2 Store #2's seller doesn't see store #1's orders on their board
+ [ ] 6.3 The GCash QR picture link: opening it as another buyer (not paying that store) is refused
+ [ ] 6.4 Super-admin -> "Orders" / "Store orders" in the admin panel: you can READ them,
+         but not edit or delete them (order records are kept for legal reasons)
+ [ ] 6.5 Sellers don't see Orders / Store orders / Fares in the admin panel menu
+         (they use the 📦 board)
+
+==================================================================
+KNOWN / NOT INCLUDED (on purpose)
+==================================================================
+- "Book rider" is a placeholder until Phase 6 (rider booking).
+- Cancelling a PAID store order + refunds come in Phase 7. For now: talk in the chat.
+- Store edits (change items/qty/price) are postponed (your decision: confirm or cancel only).
+- The payment-check flag is shown on the tile; the admin queue comes in Phase 8.
+- No push notifications yet (Phase 6). Sellers see new orders by the 📦 number (checks every 20 s).
+- The estimated delivery fee is only an estimate shown to the buyer; the rider collects cash.
+- Not tested by Claude in a real browser: the cart/checkout/order screens and the admin
+  bubbles. The order RULES were tested on the database (49 checks: server prices, max stores,
+  fares, order cards, QR approval, receipts, timers, cancel rules, ready-to-book, privacy) +
+  26 state-machine checks.

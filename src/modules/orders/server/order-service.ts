@@ -168,9 +168,7 @@ export type DeliveryInput = { barangay?: string; addressDetails?: string; locati
 export const previewCheckout = async (ctx: ChatCtx, actor: ChatActor, input: { stores: CartStoreInput[]; mode: DeliveryMode; delivery?: DeliveryInput }) => {
   if (actor.side !== "buyer") throw new TRPCError({ code: "FORBIDDEN", message: "Use a buyer account to order." });
   const settings = await getSettings(ctx.payload);
-  const stores = await checkCart(ctx, input.stores, settings).catch((error: TRPCError) => {
-    throw error;
-  });
+  const stores = await checkCart(ctx, input.stores, settings);
   const profile = await buyerProfile(ctx, actor.userId);
   const barangay = input.delivery?.barangay ?? profile.barangay;
   const location = input.delivery?.location ?? profile.location;
@@ -180,7 +178,14 @@ export const previewCheckout = async (ctx: ChatCtx, actor: ChatActor, input: { s
   if (!location || !isValidLatLng(location) || !isInServiceArea(settings, location)) deliveryProblems.push("Drop your delivery pin inside our delivery area.");
   const fare = await estimateFare(ctx, { fromBarangay: stores[0]?.store?.barangay, toBarangay: barangay, mode: input.mode, stops: stores.length });
   return {
-    stores: stores.map(({ store: _store, ...rest }) => rest),
+    stores: stores.map((store) => ({
+      storeSlug: store.storeSlug,
+      storeName: store.storeName,
+      logoUrl: store.logoUrl,
+      lines: store.lines,
+      subtotal: store.subtotal,
+      problems: store.problems,
+    })),
     itemsTotal: stores.reduce((sum, store) => sum + store.subtotal, 0),
     fare,
     delivery: { barangay, addressDetails: input.delivery?.addressDetails ?? profile.addressDetails, location },
@@ -519,6 +524,7 @@ export type StoreOrderView = {
   // The parent order (for the store: what it may see)
   order: { code: string; mode: DeliveryMode; status: OrderStatus; buyerName: string; barangay: string | null };
   actions: StoreOrderAction[];
+  viewer: "buyer" | "store";
 };
 
 const ACTIONS_FOR: Record<"buyer" | "store", StoreOrderAction[]> = {
@@ -573,6 +579,7 @@ const toView = async (ctx: ChatCtx, actor: ChatActor, raw: StoreOrder, settings:
       barangay: order.delivery?.barangay ?? null,
     },
     actions: ACTIONS_FOR[actor.side].filter((action) => canDo(action, status)),
+    viewer: actor.side,
   };
 };
 

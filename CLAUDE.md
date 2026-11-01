@@ -124,14 +124,17 @@ src/
   modules/bot-protection/ Turnstile check + rate limits (MongoDB counters) for public forms and Payload login
   modules/reports/    minimal report button + reports.create (logged-in users; only the super-admin reads reports)
   modules/chat/       store chat: chat-service (all membership checks), procedures, chat head + panel UI
+  modules/orders/     state.ts (state machine), order-service (checkout + store order lifecycle), order card / board / my orders UI
+  modules/checkout/   browser cart (per store, with quantities) + cart and checkout screens
   components/admin/   custom Payload admin components (seller chat head)
   modules/tenants/    store pages: public store data (allowlist), badge, header, stores by barangay
   trpc/               tRPC setup (init, client, server caller, root router)
   payload.config.ts   Payload config (@payload-config alias)
   payload-types.ts    generated — run `bun run generate:types`, don't edit by hand
   seed.ts             dev seed script (writes to the DB — ask first)
-scripts/              checks: `bun run test:access | test:redirects | test:signup | test:emails | test:2fa | test:bot-protection`
-                      DB checks (real dev DB, inside cancelled transactions): `test:invites | test:rider-docs | test:admin-login | test:stores | test:chat`
+scripts/              checks: `bun run test:access | test:redirects | test:signup | test:emails | test:2fa | test:bot-protection | test:order-rules`
+                      DB checks (real dev DB, inside cancelled transactions): `test:invites | test:rider-docs | test:admin-login | test:stores | test:chat | test:orders`
+                      `test:order-rules` checks the order state machine (no DB)
                       `chat:cleanup` deletes expired chats (same as the daily /api/cron/chat-cleanup; writes to the DB)
                       `admin:reset-2fa <email> [--new-password]` emergency 2FA reset (writes to the DB)
                       `seed:mock` adds/removes [MOCK] products (writes to the DB)
@@ -141,6 +144,7 @@ suggestions/          critical suggestions for the developer (§4)
 suggestions/tobedone/ things the developer still has to test or do (checklists)
 suggestions/check_phase3/ Phase 3 check list for the developer
 suggestions/check_phase4/ Phase 4 (chat) check list for the developer
+suggestions/check_phase5/ Phase 5 (cart + checkout) check list for the developer
 media/                local public uploads, gitignored (moves to Vercel Blob later)
 private-media/        local PRIVATE uploads (IDs, licenses, landmark photos), gitignored (Vercel Private Blob later)
 backups/              local DB backups made before migrations, gitignored (contain personal data)

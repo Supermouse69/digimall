@@ -18,4 +18,13 @@ export const settingsRouter = createTRPCRouter({
       documents,
     };
   }),
+
+  // Cart + checkout box: the store limit and the developer's "Quick reminders" text
+  cartOptions: baseProcedure.query(async ({ ctx }) => {
+    const settings = await getSettings(ctx.db);
+    return {
+      maxStoresPerCart: settings.maxStoresPerCart,
+      checkoutKeyPoints: toKeyPointList(settings.checkoutKeyPoints),
+    };
+  }),
 });

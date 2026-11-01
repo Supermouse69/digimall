@@ -26,7 +26,9 @@ export const ChatHead = () => {
     refetchInterval: () => (typeof document !== "undefined" && document.visibilityState === "visible" ? 20000 : false),
   });
 
-  if (!canChat || HIDDEN_ON.some((path) => pathname.startsWith(path))) return null;
+  // Inside the admin panel's frame (seller chat / orders), the admin page has its own bubbles
+  const inFrame = typeof window !== "undefined" && window.self !== window.top;
+  if (!canChat || inFrame || HIDDEN_ON.some((path) => pathname.startsWith(path))) return null;
   const count = unread.data?.count ?? 0;
 
   return (

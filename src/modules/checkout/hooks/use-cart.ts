@@ -1,40 +1,28 @@
-import { useCartStore } from "../store/use-cart-store";
+import { useQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
 
-export const useCart = (tenantSlug: string) =>{
-    const{
-        getCartByTenant,
-        addProduct,
-        removeProduct,
-        clearCart,
-        clearAllCarts,
-    } = useCartStore();
+import { useTRPC } from "@/trpc/client";
 
-    const productIds = getCartByTenant(tenantSlug);
+import { cartItemCount, useCartStore } from "../store/use-cart-store";
 
-    const toggleProduct = (productId: string) => {
-        if(productIds.includes(productId)){
-            removeProduct(tenantSlug,productId);
-        }else{
-            addProduct(tenantSlug,productId);
-        }
-    };
+// Cart helpers for one store's product buttons
+export const useCart = (storeSlug: string) => {
+  const trpc = useTRPC();
+  const options = useQuery(trpc.settings.cartOptions.queryOptions());
+  const maxStores = options.data?.maxStoresPerCart ?? 3;
+  const { carts, add, remove } = useCartStore();
+  const items = carts[storeSlug]?.items ?? {};
 
-    const isProductInCart = (productId: string) => {
-        return productIds.includes(productId);
-    };
-
-    const clearTenantCart = () => {
-        clearCart(tenantSlug);
-    };
-
-    return{
-        productIds,
-        addProduct: (productId: string) => addProduct(tenantSlug, productId),
-        removeProduct: (productId: string) => removeProduct(tenantSlug, productId),
-        clearCart: clearTenantCart,
-        clearAllCarts,
-        toggleProduct,
-        isProductInCart,
-        totalItems: productIds.length,
-    };
+  return {
+    qtyOf: (productId: string) => items[productId] ?? 0,
+    add: (productId: string) => {
+      if (add(storeSlug, productId, maxStores) === "too_many_stores") {
+        toast.error(`You can order from up to ${maxStores} stores at a time. Check out first, or remove a store from your cart.`);
+        return false;
+      }
+      return true;
+    },
+    remove: (productId: string) => remove(storeSlug, productId),
+    totalItems: cartItemCount(carts),
+  };
 };

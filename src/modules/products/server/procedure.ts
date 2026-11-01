@@ -34,6 +34,31 @@ export const productsRouter = createTRPCRouter({
       tenant:product.tenant as Tenant & {logo:Media | null},
     }
   }),
+  // The cart page: current public info for the products in a browser cart (hidden ones drop out)
+  cartDetails: baseProcedure
+    .input(z.object({ ids: z.array(z.string().max(100)).max(90) }))
+    .query(async ({ ctx, input }) => {
+      if (input.ids.length === 0) return [];
+      const { docs } = await ctx.db.find({
+        collection: "products",
+        where: { id: { in: input.ids } },
+        depth: 1,
+        pagination: false,
+        overrideAccess: false,
+      });
+      return docs.map((doc) => {
+        const tenant = doc.tenant as Tenant & { logo?: Media | null };
+        return {
+          id: doc.id,
+          name: doc.name,
+          price: doc.price,
+          isAvailable: doc.isAvailable !== false,
+          imageUrl: (doc.image as Media | null)?.url ?? null,
+          storeSlug: tenant?.slug ?? "",
+          storeName: tenant?.name ?? "",
+        };
+      });
+    }),
   getMany: baseProcedure
     .input(
       z.object({

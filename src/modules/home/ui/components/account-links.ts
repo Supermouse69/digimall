@@ -18,6 +18,7 @@ export const getAccountLinks = (user: SessionUser | null | undefined): AccountLi
     case "seller":
       return [
         { href: "/admin", label: "Dashboard" },
+        { href: "/seller/orders", label: "Orders" },
         ...(user.store ? [{ href: generateTenantURL(user.store.slug), label: "My store" }] : []),
       ];
     case "super-admin":
@@ -25,6 +26,9 @@ export const getAccountLinks = (user: SessionUser | null | undefined): AccountLi
     case "rider":
       return [{ href: "/rider", label: "Rider portal" }];
     default:
-      return [];
+      return [
+        { href: "/orders", label: "My orders" },
+        { href: "/cart", label: "Cart" },
+      ];
   }
 };

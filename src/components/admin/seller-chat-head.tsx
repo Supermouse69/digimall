@@ -3,16 +3,18 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@payloadcms/ui";
 
-// Sellers' chat head inside the Payload admin panel (developer's choice: a floating chat like
-// other shopping apps, no separate page to go to). It shows the same chat as the buyer site
-// (/chat?embed=1) in a frame, so there is one chat screen to maintain.
+// Sellers' floating bubbles inside the Payload admin panel (developer's choice: like other
+// shopping apps, no separate page to go to):
+//   💬 Chats  -> /chat?embed=1           (store chat)
+//   📦 Orders -> /seller/orders?embed=1  (Orders board, Phase 5)
+// Each opens the main site's page in a frame, so there's one chat/order screen to maintain.
 // Inline styles: the admin panel doesn't load the site's Tailwind CSS.
 
 const POLL_MS = 20000;
 
-const readUnread = async (): Promise<number> => {
+const readCount = async (path: string): Promise<number> => {
   try {
-    const res = await fetch("/api/trpc/chat.unreadCount", { credentials: "include" });
+    const res = await fetch(path, { credentials: "include" });
     const json = (await res.json()) as { result?: { data?: { count?: number } } };
     return json.result?.data?.count ?? 0;
   } catch {
@@ -20,16 +22,27 @@ const readUnread = async (): Promise<number> => {
   }
 };
 
-const SellerChatBubble = () => {
-  const [open, setOpen] = useState(false);
-  const [unread, setUnread] = useState(0);
+type BubbleProps = {
+  icon: string;
+  label: string;
+  src: string;
+  countPath: string;
+  closeMessage: string;
+  bottom: number;
+  open: boolean;
+  onToggle: () => void;
+  onClose: () => void;
+};
+
+const FrameBubble = ({ icon, label, src, countPath, closeMessage, bottom, open, onToggle, onClose }: BubbleProps) => {
+  const [count, setCount] = useState(0);
 
   useEffect(() => {
     let alive = true;
     const tick = async () => {
       if (document.visibilityState !== "visible") return;
-      const count = await readUnread();
-      if (alive) setUnread(count);
+      const value = await readCount(countPath);
+      if (alive) setCount(value);
     };
     void tick();
     const timer = setInterval(tick, POLL_MS);
@@ -37,16 +50,16 @@ const SellerChatBubble = () => {
       alive = false;
       clearInterval(timer);
     };
-  }, [open]);
+  }, [countPath, open]);
 
-  // The chat inside the frame asks to close itself
+  // The page inside the frame asks to close itself
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
-      if (event.origin === window.location.origin && event.data === "digimall-chat-close") setOpen(false);
+      if (event.origin === window.location.origin && event.data === closeMessage) onClose();
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, []);
+  }, [closeMessage, onClose]);
 
   return (
     <>
@@ -55,9 +68,9 @@ const SellerChatBubble = () => {
           style={{
             position: "fixed",
             right: 16,
-            bottom: 88,
-            width: "min(380px, calc(100vw - 32px))",
-            height: "min(560px, calc(100vh - 120px))",
+            bottom: 160,
+            width: "min(420px, calc(100vw - 32px))",
+            height: "min(600px, calc(100vh - 190px))",
             zIndex: 1000,
             borderRadius: 12,
             overflow: "hidden",
@@ -66,21 +79,22 @@ const SellerChatBubble = () => {
             background: "#fff",
           }}
         >
-          <iframe src="/chat?embed=1" title="Chats" style={{ width: "100%", height: "100%", border: 0 }} />
+          <iframe src={src} title={label} style={{ width: "100%", height: "100%", border: 0 }} />
         </div>
       )}
       <button
         type="button"
-        onClick={() => setOpen((value) => !value)}
-        aria-label={unread > 0 ? `Chats, ${unread} new` : "Chats"}
+        onClick={onToggle}
+        aria-label={count > 0 ? `${label}, ${count} new` : label}
+        title={label}
         style={{
           position: "fixed",
           right: 16,
-          bottom: 16,
+          bottom,
           width: 56,
           height: 56,
           borderRadius: "50%",
-          background: "#000",
+          background: open ? "#333" : "#000",
           color: "#fff",
           border: 0,
           cursor: "pointer",
@@ -89,8 +103,8 @@ const SellerChatBubble = () => {
           boxShadow: "0 4px 12px rgba(0,0,0,.3)",
         }}
       >
-        💬
-        {unread > 0 && (
+        {icon}
+        {count > 0 && (
           <span
             style={{
               position: "absolute",
@@ -106,7 +120,7 @@ const SellerChatBubble = () => {
               lineHeight: "20px",
             }}
           >
-            {unread > 9 ? "9+" : unread}
+            {count > 9 ? "9+" : count}
           </span>
         )}
       </button>
@@ -114,7 +128,39 @@ const SellerChatBubble = () => {
   );
 };
 
-// Payload admin "provider": wraps every admin page; shows the bubble only for sellers with a store
+const SellerBubbles = () => {
+  // Only one window open at a time
+  const [open, setOpen] = useState<"chat" | "orders" | null>(null);
+  const close = () => setOpen(null);
+  return (
+    <>
+      <FrameBubble
+        icon="📦"
+        label="Orders"
+        src="/seller/orders?embed=1"
+        countPath="/api/trpc/orders.attentionCount"
+        closeMessage="digimall-orders-close"
+        bottom={84}
+        open={open === "orders"}
+        onToggle={() => setOpen(open === "orders" ? null : "orders")}
+        onClose={close}
+      />
+      <FrameBubble
+        icon="💬"
+        label="Chats"
+        src="/chat?embed=1"
+        countPath="/api/trpc/chat.unreadCount"
+        closeMessage="digimall-chat-close"
+        bottom={16}
+        open={open === "chat"}
+        onToggle={() => setOpen(open === "chat" ? null : "chat")}
+        onClose={close}
+      />
+    </>
+  );
+};
+
+// Payload admin "provider": wraps every admin page; shows the bubbles only for sellers with a store
 export const SellerChatHead = ({ children }: { children?: React.ReactNode }) => {
   const { user } = useAuth();
   const isSellerWithStore =
@@ -123,7 +169,7 @@ export const SellerChatHead = ({ children }: { children?: React.ReactNode }) => 
   return (
     <>
       {children}
-      {isSellerWithStore && <SellerChatBubble />}
+      {isSellerWithStore && <SellerBubbles />}
     </>
   );
 };
