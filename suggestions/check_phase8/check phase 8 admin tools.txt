@@ -1,0 +1,62 @@
+Title: CHECK PHASE 8: Admin desk + approval notices
+Date: 2026-11-01
+Status: not checked yet by the developer
+Branch: phase-8-admin-tools (built on top of phase-7-refunds)
+
+BEFORE YOU START
+- Stop and restart `bun run dev`.
+- Log in as SUPER-ADMIN through the hidden admin entry.
+- If something fails: write the step number, what you clicked and the exact message.
+
+==================================================================
+PART 1: THE ADMIN DESK (Payload dashboard, super-admin only)
+==================================================================
+ [ ] 1.1 The dashboard starts with "Admin desk" and "N things waiting for you" (or "Nothing is waiting")
+ [ ] 1.2 Cards appear only for queues that have something. RED border = urgent (money/safety),
+         BLACK = approvals, GREY = setup gaps
+ [ ] 1.3 Each card's "Open the list →" opens the matching FILTERED list, e.g.
+         "Stores waiting for approval" -> Stores list showing only pending stores
+ [ ] 1.4 Approve a pending store (set "Unverified store") -> go back to the dashboard -> the count drops
+ [ ] 1.5 "GCash QRs to approve": tick "GCash QR approved" on that store -> the count drops
+ [ ] 1.6 "Riders to approve": approve the rider -> the count drops
+ [ ] 1.7 "Open reports": mark one "resolved" -> the count drops
+ [ ] 1.8 Setup cards (grey): "Delivery fares entered" shows 0 if you have none;
+         "Open stores without opening/closing times" / "... without a map pin" list what's missing;
+         "Sign-up / checkout key points still placeholders"; "Legal pages never updated (version 1)"
+ [ ] 1.9 "All clear: ..." lists the queues with nothing waiting
+ [ ] 1.10 Quick links (Stores, Riders, Invites, Reports, Store orders, Orders, Fares, Categories,
+          Legal pages, Audit log, Settings) all open
+ [ ] 1.11 "Latest in the audit log" shows the last 8 entries (time, action, who, what); tapping
+          an action opens the entry
+ [ ] 1.12 Log in as a SELLER -> their dashboard shows NO Admin desk (only the 📦 / 💬 bubbles)
+
+==================================================================
+PART 2: APPROVAL NOTICES (watch the `bun run dev` terminal for the emails)
+==================================================================
+ [ ] 2.1 Approve a pending store -> the seller gets an email "<store> is live on DigiMall"
+         (+ a push if they turned notifications on)
+ [ ] 2.2 Set a store to "Business permit checked" -> push "Business permit checked"
+ [ ] 2.3 Suspend a store -> email "<store> is suspended on DigiMall"
+ [ ] 2.4 Approve its GCash QR -> push "GCash QR approved"
+ [ ] 2.5 Approve a rider -> email "You're approved as a DigiMall rider" (+ push)
+ [ ] 2.6 Suspend a rider -> push "Rider account on hold"
+ [ ] 2.7 The approval itself always saves, even if an email/push fails
+
+==================================================================
+PART 3: THINGS THAT WERE ALREADY THERE (quick check)
+==================================================================
+ [ ] 3.1 Fares: add/edit routes (casual + fast), whole pesos only
+ [ ] 3.2 Settings: all sections (service area, sign-up, orders + timers, paid but not booked +
+         refunds, chat) save
+ [ ] 3.3 Audit log: entries can't be edited or deleted (not even by you)
+ [ ] 3.4 Chats: only REPORTED chats are listed; opening one adds "chat.viewed" to the audit log
+
+==================================================================
+KNOWN / NOT INCLUDED
+==================================================================
+- Privacy requests (export / delete a user's data): NOT built yet. See
+  suggestions/privacy requests tool.txt. Needed before going live with real users.
+- A bug I found and fixed on the way: a database quirk could make checkout fail now and then
+  (MongoDB, first step of a transaction). Fixed in src/lib/transaction.ts.
+- Not tested by Claude in a real browser: how the Admin desk LOOKS in the admin panel and the
+  emails/pushes on real devices. The queue COUNTS and links were tested on the database (15 checks).

@@ -1,0 +1,33 @@
+Title: Privacy requests: export / correct / delete a user's data
+Date: 2026-11-01
+Priority: High (before going live with real users)
+Area: legal / data
+
+What's the problem?
+CLAUDE.md §9 (Data Privacy Act, RA 10173) says users can view/download and correct their data,
+and ask for account deletion, handled by the super-admin: keep only the order records needed for
+legal/dispute reasons, anonymize the rest. Today there's no tool for that. You'd have to edit
+many collections by hand (users, chats, private files, push subscriptions, rider profile...).
+
+Why it matters (what could go wrong):
+A buyer emails "delete my account" and the job is done halfway: chat photos or a landmark photo
+stay behind, or order records get deleted that you must keep. Both are bad under the DPA.
+
+What I suggest (Phase 8.5 or before Phase 9):
+1. Admin desk card "Privacy requests" + a button on a user: "Export this user's data" ->
+   a JSON file with their profile, consents, orders (their part), and a list of their files.
+2. "Delete / anonymize this user":
+   - deletes their private files (landmark photo, chat photos, receipts they uploaded, rider docs)
+   - deletes their chats' messages (unless a chat is under a report), push subscriptions, sessions
+   - keeps orders/store orders (legal records) but replaces name/phone/address/pin with "Deleted user"
+   - blocks the account from logging in again; writes an audit entry
+3. A "My account" page for buyers (change username, phone, address, landmark photo) covers
+   "correct their data" and saves you work.
+
+Effort and cost: Free. About one work session (+ tests).
+Trade-offs / risks: Deleting is permanent. The tool must ask for confirmation and log who did it.
+The retention period for order records is yours to decide (put it in the Privacy Notice).
+What I need from you:
+- Yes/no to building this before deploy
+- How long to keep order records after an account is deleted (e.g. 5 years?). It's your/your
+  lawyer's call, I won't guess it.
