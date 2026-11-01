@@ -1,0 +1,89 @@
+Title: CHECK PHASE 7: cancellations, refunds, paid-but-not-booked
+Date: 2026-11-01
+Status: not checked yet by the developer
+Branch: phase-7-refunds (built on top of phase-6-riders)
+
+BEFORE YOU START
+- Stop and restart `bun run dev`.
+- You need: a BUYER, a SELLER (store with an approved GCash QR), and for part 4 a RIDER.
+- SET UP as super-admin:
+   [ ] 0.1 Settings -> "Paid but not booked + refunds": check the numbers
+           (3 h reminder, self-pickup 2 h before closing, auto-refund after 24 h, remind the seller
+           every 3 h, seller has 24 h after the buyer's QR, buyer 72 h to confirm, QR flag after 3 days)
+   [ ] 0.2 Store -> "Opens at" / "Closes at" (e.g. 07:00 / 21:00). Only YOU can set these.
+           The store page now shows "Open 07:00 – 21:00"
+- FAST TESTING TIP: the timers count hours, so either wait, or ask Claude for a small test
+  helper. The automatic DB tests already moved the clock for every rule (39 checks).
+- Reminders/pushes go out when the timers job runs: run `bun run orders:timers` to trigger it now.
+- If something fails: write the step number, what you clicked and the exact message.
+
+==================================================================
+PART 1: CANCEL A PAID ORDER -> REFUND (buyer cancels)
+==================================================================
+ [ ] 1.1 Place an order, store confirms, buyer pays + receipt, store taps "Payment received"
+ [ ] 1.2 Buyer: "Cancel this store" -> the pop-up says "You already paid, so the store will refund
+         you by GCash" -> Yes, cancel
+ [ ] 1.3 The order card shows "Refund: waiting for the buyer's GCash QR · ₱..." and the chat has
+         "💸 Refund needed for DM-XXXX-A"
+ [ ] 1.4 Seller: the 📦 board shows the tile pinned on TOP with "🟠 REFUND NEEDED", orange
+ [ ] 1.5 Buyer: "Send my GCash QR" -> upload YOUR GCash QR picture -> the chat shows it
+ [ ] 1.6 Seller: "Open the buyer's GCash QR" works. The card says "🟠 REFUND NEEDED: store must send the money"
+ [ ] 1.7 Seller: send the money in GCash, then "Refund sent (upload proof)" -> upload a screenshot
+ [ ] 1.8 Buyer: "View the refund proof" works -> "Refund received" -> "Refunded"
+ [ ] 1.9 The tile leaves the seller's Active board (it's under Finished)
+ [ ] 1.10 My orders shows "💸 Refund in progress" while a refund is open
+
+==================================================================
+PART 2: OTHER CANCELS
+==================================================================
+ [ ] 2.1 Seller cancels a PAID order (reason required) -> same refund flow starts
+ [ ] 2.2 Buyer: "Cancel the whole order" on a paid 2-store order -> both stores cancel, both refund
+ [ ] 2.3 Unpaid store orders still cancel with NO refund (like Phase 5)
+
+==================================================================
+PART 3: REFUND TIMERS (needs time to pass, or trust the automatic test)
+==================================================================
+ [ ] 3.1 Seller doesn't send the refund within 24 h after the buyer's QR -> "🟠 REFUND NEEDED (late:
+         the DigiMall admin was told)", Audit Logs has "refund.escalated". The seller can still send it
+ [ ] 3.2 Buyer doesn't tap "Refund received" within 72 h -> "Refund sent (buyer didn't confirm)"
+ [ ] 3.3 Buyer never sends a QR for 3 days -> reminder in chat + flagged
+ [ ] 3.4 `bun run orders:timers` while a refund waits for the store -> the seller gets a push
+         "🟠 Refund needed" (if notifications are on). Running it again right away sends nothing
+         (every 3 h, and only while the store is open)
+ [ ] 3.5 Super-admin: Store orders list -> you can find escalated refunds (filter by refund status)
+
+==================================================================
+PART 4: RIDER + CANCEL
+==================================================================
+ [ ] 4.1 Paid order -> book a rider -> rider accepts -> buyer cancels the whole order
+         -> the rider's trip disappears, the rider gets "Trip cancelled" (if notifications on),
+         the trip chat says it ended, and the store refunds the buyer
+ [ ] 4.2 Super-admin: the order shows cancel stage "rider_assigned" (for your Terms)
+ [ ] 4.3 After the rider taps "Picked up": NO cancel buttons anywhere, and trying says
+         "Your items are on the way — this order can't be cancelled."
+
+==================================================================
+PART 5: PAID BUT NOT BOOKED (your rule)
+==================================================================
+ [ ] 5.1 Pay every store, don't book a rider. After 3 h: the order page shows "⏰ Please book a
+         rider soon..." and the buyer gets a push (after `bun run orders:timers`)
+ [ ] 5.2 The order page always shows "If not booked or picked up by <date/time>, the order is
+         cancelled and each store refunds you"
+ [ ] 5.3 2 hours before the store's closing time: "🏪 Self-pickup" box with the store + closing time;
+         the chat says so; "Book rider" is gone
+ [ ] 5.4 Seller: the card shows "Buyer picked up" -> tap it when the buyer comes -> Delivered
+ [ ] 5.5 After 1 day still not booked/picked up: cancelled + refund starts automatically
+         (Audit Logs: "order.auto_refunded")
+ [ ] 5.6 A store WITHOUT opening/closing times never becomes self-pickup (only the reminder and
+         the 1-day refund apply). Set the times for every store!
+
+==================================================================
+KNOWN / NOT INCLUDED (on purpose)
+==================================================================
+- Wrong or missing item after delivery: chat only (your decision). No refund button after delivery.
+- Rider compensation when the buyer cancels after accept: only recorded (stage + times); your Terms decide.
+- Reminders/pushes need the timers job to run regularly. See suggestions/order timer scheduler.txt
+  (Vercel Hobby only allows once a day). The status changes themselves always happen on the next visit.
+- The full admin queue for escalated refunds / flags comes in Phase 8.
+- Not tested by Claude in a real browser: the refund buttons/uploads, the self-pickup screens and
+  the pushes. The RULES were tested on the database (39 checks) + 53 rule checks.
