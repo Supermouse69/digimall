@@ -228,10 +228,10 @@ Keep `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_ROOT_DOMAIN`, and `NEXT_PUBLIC_ENABLE_S
   - No convenience fee during the beta.
 
   ⚠️ **Open questions — some points differ from the spec; the developer decides before Phase 5/7:**
-  1. Paid-but-unbooked: the text says remind after **3 hours** and the store refunds after **2 days**. §11.10 says remind after **30 min**, **8:00 PM same-day cutoff → `self_pickup`**, and stores owe a refund only if a cancel button is pressed. Which one is the rule?
+  1. ~~Paid-but-unbooked timing~~ **Decided 2026-11-01** (replaces §11.10's 30 min / 8 PM): reminder **3 h** after `ready_to_book`; **2 h before the store's closing time** → `self_pickup`; **1 day** after `ready_to_book` still not booked/picked up → each paid store order is **cancelled + refunded automatically**; the seller is **reminded repeatedly** (during store hours) until the refund is sent. Store opening/closing times are set by the **super-admin only**. All numbers in Settings.
   2. ~~"confirms" vs "paid"~~ **Decided 2026-10-31: booking opens only when every non-cancelled store order is PAID** (seller tapped "Payment received"), as in §11.5.
   3. ~~Dev Hub vs in-app fare~~ **Decided 2026-10-31: in-app fare table** (super-admin enters rates; checkout shows the estimate; without a rate it says the rider will tell the fee).
-  4. "Wrong or missing item → report within __ hours for a refund or replacement": the number is blank, and refunds after delivery aren't in the spec yet (§11.9 covers refunds only when a paid store order is cancelled). New flow needed?
+  4. ~~Wrong/missing item~~ **Decided 2026-11-01: chat only for now** (buyer and store sort it out in chat; disputes go through reports). No in-app flow yet.
 
 **Old Google Sheets data:** don't bulk-import buyers' personal data — buyers re-register under the new Privacy Notice. The admin re-creates stores and riders.
 
@@ -385,7 +385,7 @@ Items and prices are locked once the buyer accepts the store's confirmation.
 ### 11.8 Cancellation
 - **Buyer:** can cancel a store order or the whole Order until the first pickup. After that the button is disabled with the note *"Your items are on the way — this order can't be cancelled."*
 - **Store:** can cancel its own store order any time before pickup (reason required).
-- If the buyer cancels after a rider accepted but before pickup: the rider is released and notified. Rider compensation follows the Terms (developer); the app records the stage and timestamps.
+- If the buyer cancels after a rider accepted but before pickup: the rider is released and notified. Rider compensation follows the Terms (developer); the app records the stage and timestamps. (**Confirmed 2026-11-01: record only.**)
 - Cancelling an unpaid store order → no refund. Cancelling a **paid** one → refund flow.
 
 ### 11.9 Refunds (only when a paid store order is cancelled)
@@ -397,7 +397,7 @@ Items and prices are locked once the buyer accepts the store's confirmation.
 - Buyer doesn't upload a QR → reminders; flag to the admin after 3 days.
 - Refund amount = the full amount paid to that store for that store order. The delivery fee isn't involved (cash to the rider, paid only on delivery).
 
-### 11.10 Paid but rider never booked
+### 11.10 Paid but rider never booked (⚠️ superseded 2026-11-01 — see §8 open question 1 for the decided rule)
 - Reminder to the buyer 30 min after `ready_to_book` (push if a scheduler exists, otherwise an in-app banner).
 - At the daily cutoff (**8:00 PM** Asia/Manila), the Order becomes `self_pickup` and the buyer is told to pick up at the store(s). What happens next follows the Terms (developer).
 - This is the buyer's responsibility: stores owe a refund only if a cancel button is pressed (§11.8–11.9).
