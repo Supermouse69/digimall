@@ -72,7 +72,6 @@ const email = process.env.RESEND_API_KEY
     : devConsoleEmailAdapter;
 
 export default buildConfig({
-  serverURL: process.env.NEXT_PUBLIC_APP_URL,
   // Logged-in (cookie) requests to /api are only accepted from these origins
   csrf: allowedOrigins,
   cors: allowedOrigins,
