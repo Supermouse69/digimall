@@ -1,0 +1,27 @@
+PULL REQUEST: phase-9-deploy -> main
+Open: https://github.com/Supermouse69/digimall/compare/main...phase-9-deploy?expand=1
+Title: DigiMall beta: Phases 2–9 (roles & auth, stores, chat, checkout, riders, refunds, admin, deploy)
+
+----- copy everything below into the PR description -----
+
+## What's in this PR
+All work since Phase 1, stacked: phase-2-roles-auth → phase-3-stores-products → phase-6-riders → phase-7-refunds → phase-8-admin-tools → phase-9-deploy.
+
+- **Phase 2:** one role per account, buyer sign-up + consents + legal placeholders, email verification + password reset, invites for sellers/riders, private files + audit log, super-admin hidden entry + 2FA, Turnstile + rate limits
+- **Phase 3:** store status/badges/merchant info, `/store/[slug]` (old `/tenants` redirects), whole-peso prices, availability, category whitelist, admin hiding, minimal reports; public data is an allowlist
+- **Phase 4:** store chat (chat head on the site + seller bubble in admin), private chat photos, polling, reports, 90-day cleanup (`/api/cron/chat-cleanup`)
+- **Phase 5:** cart (max 3 stores), checkout, DM-XXXX orders + per-store orders, order cards in chat, manual GCash (approved QR, receipt upload), lazy timers, seller Orders board
+- **Phase 6:** rider portal (Active, location, requests, trip, delivered + fee, history), buyer booking + live trip map, trip chat, web push (VAPID), installable rider app
+- **Phase 7:** cancellations + refund flow (QR → sent → received, escalation), paid-but-unbooked rule (3 h reminder, self-pickup 2 h before closing, auto refund after 1 day), `/api/cron/order-timers`
+- **Phase 8:** Admin desk (super-admin queues on the dashboard), approval notices; fix for a MongoDB transaction race (`lib/transaction.ts`)
+- **Phase 9:** Vercel Blob (public) + Cloudflare R2 (private) storage, Resend email, CSRF/CORS, security headers (CSP/HSTS/...), `vercel.json` (Singapore + crons), privacy export/erase tool, prod scripts, deploy guide
+
+## Checks
+- Typecheck, lint, `bun run build`: clean
+- 19 test suites pass (access, redirects, signup, emails, 2fa, bot-protection, order-rules, stores, chat, orders, trips, refunds, admin-desk, privacy, invites, rider-docs, admin-login)
+- No secrets committed (`.env*` gitignored; only Cloudflare's public Turnstile TEST key is in `.env.example`)
+
+## Before deploying
+Follow `suggestions/check_phase9/deploy step by step.txt` (accounts, env vars, DNS with proxy OFF, `bun run prod:migrate`, `bun run prod:create-admin`, cron-job.org).
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
