@@ -376,6 +376,7 @@ Items and prices are locked once the buyer accepts the store's confirmation.
 - After delivery: the buyer's address, landmark photo, and phone disappear from the rider's view; trip chat becomes read-only; trip location sharing stops.
 - Rider portal: Active toggle, incoming request card with countdown, active trip view (map + stops), trip history with fees (simple earnings log).
 - Fast orders show 🔴 **URGENT · FAST**, casual ones 🟢 **CASUAL**.
+- **Decided 2026-11-01 (Phase 6):** web push is on (VAPID keys, `web-push`); call buttons (tel: links) for buyer ↔ rider and rider → store appear **only while the trip is active**; at delivery the rider **confirms the cash fee collected** (pre-filled with the checkout estimate, editable) for the earnings log.
 
 ### 11.8 Cancellation
 - **Buyer:** can cancel a store order or the whole Order until the first pickup. After that the button is disabled with the note *"Your items are on the way — this order can't be cancelled."*
