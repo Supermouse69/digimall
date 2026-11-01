@@ -59,6 +59,31 @@ export const StoreOrders: CollectionConfig = {
     { name: "confirmedAt", label: "Store confirmed at", type: "date", access: locked },
     { name: "pickedUpAt", label: "Picked up by the rider at", type: "date", access: locked },
     { name: "deliveredAt", type: "date", access: locked },
+    { name: "pickedUpByBuyerAt", label: "Buyer picked up at the store at (self-pickup)", type: "date", access: locked },
+    {
+      // Refund flow (CLAUDE.md §11.9): only when a PAID store order is cancelled
+      name: "refund",
+      type: "group",
+      fields: [
+        {
+          name: "status",
+          type: "select",
+          options: ["awaiting_buyer_qr", "awaiting_store_refund", "refund_sent", "refunded", "refunded_unconfirmed", "escalated"],
+          index: true,
+          access: locked,
+        },
+        { name: "amount", label: "Amount (₱)", type: "number", access: locked },
+        { name: "startedAt", type: "date", access: locked },
+        { name: "buyerQr", label: "Buyer's GCash QR", type: "upload", relationTo: "private-media", access: locked },
+        { name: "buyerQrAt", type: "date", access: locked },
+        { name: "proof", label: "Refund proof (store)", type: "upload", relationTo: "private-media", access: locked },
+        { name: "sentAt", type: "date", access: locked },
+        { name: "receivedAt", type: "date", access: locked },
+        { name: "escalatedAt", label: "Escalated to the super-admin at", type: "date", access: locked },
+        { name: "adminFlaggedAt", label: "Buyer QR missing: flagged at", type: "date", access: locked },
+        { name: "lastReminderAt", type: "date", access: locked },
+      ],
+    },
     {
       name: "cancel",
       type: "group",

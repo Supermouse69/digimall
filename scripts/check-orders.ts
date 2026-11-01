@@ -183,7 +183,7 @@ await scenario("pay flow", async (w) => {
   check("the store sees the receipt", Boolean(sellerSees.receiptUrl));
   const linked = (await payload.findByID({ collection: "private-media", id: receipt.id, depth: 0, req: w.req })) as { conversation?: unknown };
   check("receipt file is linked to the store chat (that's how the store may open it)", String(linked.conversation) === sellerSees.conversationId);
-  check("the buyer can't cancel after paying (refunds = Phase 7)", (await refusedWith(actOnStoreOrder(w.ctx, w.buyer, a!.id, "buyer_cancel"))).includes("already paid"));
+  check("after paying, cancelling would start a refund (Phase 7)", (await storeOrderView(w.ctx, w.buyer, a!.id)).cancelNeedsRefund === true);
 
   await actOnStoreOrder(w.ctx, w.sellerA, a!.id, "payment_not_received");
   const flagged = await storeOrderView(w.ctx, w.sellerA, a!.id);

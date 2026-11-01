@@ -8,6 +8,7 @@ import { chatActorFor } from "@/modules/chat/server/chat-service";
 
 import { DELIVERY_MODES, isOrderCode } from "../state";
 import {
+  actOnRefund,
   actOnStoreOrder,
   buyerOrderDetail,
   buyerOrders,
@@ -80,7 +81,7 @@ export const ordersRouter = createTRPCRouter({
     .input(
       z.object({
         storeOrderId: id,
-        action: z.enum(["store_confirm", "store_cancel", "buyer_cancel", "submit_payment", "payment_received", "payment_not_received"]),
+        action: z.enum(["store_confirm", "store_cancel", "buyer_cancel", "submit_payment", "payment_received", "payment_not_received", "buyer_picked_up"]),
         reason: z.string().max(300).optional(),
         receiptId: id.optional(),
         referenceNo: z.string().max(40).optional(),
@@ -90,6 +91,14 @@ export const ordersRouter = createTRPCRouter({
       await guardRateLimit(ctx.db, RATE_LIMITS.orderAction, `user:${ctx.user.id}`);
       const { storeOrderId, action, ...rest } = input;
       return actOnStoreOrder(ctx.svc, ctx.actor, storeOrderId, action, rest);
+    }),
+
+  // Refund steps (CLAUDE.md §11.9): buyer sends QR -> store sends money + proof -> buyer confirms
+  refund: orderProcedure
+    .input(z.object({ storeOrderId: id, action: z.enum(["buyer_send_qr", "store_refund_sent", "buyer_refund_received"]), fileId: id.optional() }))
+    .mutation(async ({ ctx, input }) => {
+      await guardRateLimit(ctx.db, RATE_LIMITS.orderAction, `user:${ctx.user.id}`);
+      return actOnRefund(ctx.svc, ctx.actor, input.storeOrderId, input.action, input.fileId);
     }),
 
   cancelOrder: orderProcedure

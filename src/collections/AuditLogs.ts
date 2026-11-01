@@ -17,6 +17,9 @@ export const AUDIT_ACTIONS = [
   "product.visibility_changed",
   "report.status_changed",
   "chat.viewed",
+  "refund.escalated",
+  "order.auto_refunded",
+  "order.self_pickup",
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 

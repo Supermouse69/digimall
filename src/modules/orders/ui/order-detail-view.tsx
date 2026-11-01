@@ -30,7 +30,7 @@ export const OrderDetailView = ({ code }: { code: string }) => {
   const cancelOrder = useMutation(trpc.orders.cancelOrder.mutationOptions({
     onSuccess: async (result) => {
       setConfirmCancel(false);
-      toast.success(result.keptPaid > 0 ? "Cancelled what could be cancelled. Paid stores stay: talk to them in chat." : "Order cancelled");
+      toast.success(result.refundsStarted > 0 ? "Order cancelled. Send your GCash QR in each store's chat to get your refund." : "Order cancelled");
       await queryClient.invalidateQueries(trpc.orders.pathFilter());
     },
     onError: (error) => toast.error(error.message),
@@ -56,6 +56,27 @@ export const OrderDetailView = ({ code }: { code: string }) => {
       </div>
       <p className="text-lg font-medium">{ORDER_LABELS[order.status]}</p>
 
+      {order.unbooked && order.status === "ready_to_book" && order.unbooked.remind && (
+        <div className="rounded-md border-2 border-amber-500 bg-amber-50 p-3 text-sm">
+          ⏰ Please book a rider soon. {order.unbooked.selfPickupHoursBeforeClosing} hours before the store closes, this order becomes self-pickup.
+        </div>
+      )}
+      {order.status === "self_pickup" && (
+        <div className="rounded-md border-2 border-amber-500 bg-amber-50 p-3 text-sm flex flex-col gap-1">
+          <p className="font-medium">🏪 Self-pickup: no rider was booked in time.</p>
+          <p>Please pick up your items at the store{order.storeOrders.length > 1 ? "s" : ""}:</p>
+          <ul className="list-disc pl-5">
+            {order.storeOrders.filter((so) => so.status === "paid").map((so) => (
+              <li key={so.id}>{so.store.name}{so.store.closingTime ? ` (closes ${so.store.closingTime})` : ""}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {order.unbooked && (
+        <p className="text-xs text-neutral-600">
+          If not booked or picked up by {new Date(order.unbooked.autoRefundAt).toLocaleString("en-PH", { timeZone: "Asia/Manila", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}, the order is cancelled and each store refunds you.
+        </p>
+      )}
       {["ready_to_book", "rider_requested", "rider_assigned", "on_the_way", "delivered"].includes(order.status) && (
         <BookRider code={order.code} status={order.status} deliveryPoint={order.delivery.location} />
       )}
@@ -94,7 +115,7 @@ export const OrderDetailView = ({ code }: { code: string }) => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Cancel {order.code}?</DialogTitle>
-            <DialogDescription>Every store that you haven&apos;t paid yet will be cancelled. Paid stores stay (talk to them in chat).</DialogDescription>
+            <DialogDescription>Every store in this order is cancelled. Stores you already paid will refund you by GCash: you&apos;ll send your GCash QR in each store&apos;s chat.</DialogDescription>
           </DialogHeader>
           <div className="flex gap-2 justify-end">
             <Button variant="outline" onClick={() => setConfirmCancel(false)}>Keep order</Button>

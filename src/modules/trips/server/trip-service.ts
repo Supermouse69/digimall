@@ -520,3 +520,16 @@ export const buyerTrip = async (ctx: ChatCtx, actor: ChatActor, code: string) =>
   };
 };
 
+// Scheduled job: rider requests nobody answered in time move on (next rider / back to the list)
+export const expireStaleRiderRequests = async (ctx: ChatCtx) => {
+  const { docs } = await ctx.payload.find({
+    collection: "orders",
+    where: { and: [{ status: { equals: "rider_requested" } }, { "riderRequest.expiresAt": { less_than: new Date().toISOString() } }] },
+    depth: 0,
+    limit: 200,
+    overrideAccess: true,
+    req: ctx.req,
+  });
+  for (const order of docs as Order[]) await applyRequestTimer(ctx, order);
+  return docs.length;
+};

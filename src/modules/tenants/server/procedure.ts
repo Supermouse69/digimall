@@ -19,6 +19,8 @@ export type PublicStore = {
   addressDetails: string | null;
   location: LatLng | null;
   hours: string | null;
+  openingTime: string | null;
+  closingTime: string | null;
   logo: Media | null;
   banner: Media | null;
   memberSince: string;
@@ -38,6 +40,8 @@ const toPublicStore = (tenant: Tenant): PublicStore => ({
   addressDetails: tenant.addressDetails ?? null,
   location: fromPoint(tenant.location as [number, number] | null | undefined),
   hours: tenant.hours ?? null,
+  openingTime: tenant.openingTime ?? null,
+  closingTime: tenant.closingTime ?? null,
   logo: asMedia(tenant.logo),
   banner: asMedia(tenant.banner),
   memberSince: tenant.createdAt,

@@ -35,6 +35,7 @@ export const MyOrdersView = () => {
                 <ModeBadge mode={order.mode} />
               </div>
               <p className="font-medium">{ORDER_LABELS[order.status]}</p>
+              {order.refundPending && <p className="text-sm font-medium text-orange-700">💸 Refund in progress</p>}
               <p className="text-sm text-neutral-600">
                 {dateLabel(order.createdAt)} · {order.storeCount} store{order.storeCount === 1 ? "" : "s"} · {formatCurrency(order.total)}
               </p>

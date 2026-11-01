@@ -12,7 +12,9 @@ export type PrivateFilePurpose =
   | "store-bir"
   | "store-dti-sec"
   | "chat-image"
-  | "payment-receipt";
+  | "payment-receipt"
+  | "refund-qr"
+  | "refund-proof";
 
 // A relationship value can be an ID or a populated document
 export const relationId = (value: unknown): string | null => {

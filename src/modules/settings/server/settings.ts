@@ -25,6 +25,13 @@ export type MarketplaceSettings = {
   fareExtraStopFee: number;
   riderRequestSeconds: number;
   riderLocationFreshMinutes: number;
+  bookingReminderHours: number;
+  selfPickupHoursBeforeClosing: number;
+  autoRefundHours: number;
+  refundReminderEveryHours: number;
+  refundStoreHours: number;
+  refundBuyerConfirmHours: number;
+  refundQrFlagDays: number;
 };
 
 // Reads the admin-editable settings, falling back to the defaults until the super-admin saves them.
@@ -50,6 +57,13 @@ export const getSettings = async (payload: Payload): Promise<MarketplaceSettings
     fareExtraStopFee: settings?.fareExtraStopFee ?? ORDER_DEFAULTS.fareExtraStopFee,
     riderRequestSeconds: settings?.riderRequestSeconds ?? ORDER_DEFAULTS.riderRequestSeconds,
     riderLocationFreshMinutes: settings?.riderLocationFreshMinutes ?? ORDER_DEFAULTS.riderLocationFreshMinutes,
+    bookingReminderHours: settings?.bookingReminderHours ?? ORDER_DEFAULTS.bookingReminderHours,
+    selfPickupHoursBeforeClosing: settings?.selfPickupHoursBeforeClosing ?? ORDER_DEFAULTS.selfPickupHoursBeforeClosing,
+    autoRefundHours: settings?.autoRefundHours ?? ORDER_DEFAULTS.autoRefundHours,
+    refundReminderEveryHours: settings?.refundReminderEveryHours ?? ORDER_DEFAULTS.refundReminderEveryHours,
+    refundStoreHours: settings?.refundStoreHours ?? ORDER_DEFAULTS.refundStoreHours,
+    refundBuyerConfirmHours: settings?.refundBuyerConfirmHours ?? ORDER_DEFAULTS.refundBuyerConfirmHours,
+    refundQrFlagDays: settings?.refundQrFlagDays ?? ORDER_DEFAULTS.refundQrFlagDays,
   };
 };
 

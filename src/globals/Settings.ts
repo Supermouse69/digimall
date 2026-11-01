@@ -19,6 +19,13 @@ export const ORDER_DEFAULTS = {
   fareExtraStopFee: 0,
   riderRequestSeconds: 120,
   riderLocationFreshMinutes: 5,
+  bookingReminderHours: 3,
+  selfPickupHoursBeforeClosing: 2,
+  autoRefundHours: 24,
+  refundReminderEveryHours: 3,
+  refundStoreHours: 24,
+  refundBuyerConfirmHours: 72,
+  refundQrFlagDays: 3,
 };
 
 export const Settings: GlobalConfig = {
@@ -174,6 +181,20 @@ export const Settings: GlobalConfig = {
           max: 30,
           defaultValue: ORDER_DEFAULTS.riderLocationFreshMinutes,
         },
+      ],
+    },
+    {
+      type: "collapsible",
+      label: "Paid but not booked + refunds",
+      admin: { description: "Developer decision 2026-11-01 (CLAUDE.md §8). Times use each store's opening/closing time (set in the store, super-admin only)." },
+      fields: [
+        { name: "bookingReminderHours", label: "Remind the buyer to book a rider after (hours)", type: "number", required: true, min: 1, max: 48, defaultValue: ORDER_DEFAULTS.bookingReminderHours },
+        { name: "selfPickupHoursBeforeClosing", label: "Becomes self-pickup this many hours before the store closes", type: "number", required: true, min: 0, max: 12, defaultValue: ORDER_DEFAULTS.selfPickupHoursBeforeClosing },
+        { name: "autoRefundHours", label: "Still not booked/picked up after (hours): cancel + refund automatically", type: "number", required: true, min: 1, max: 336, defaultValue: ORDER_DEFAULTS.autoRefundHours },
+        { name: "refundReminderEveryHours", label: "Remind the seller about a pending refund every (hours, during store hours)", type: "number", required: true, min: 1, max: 24, defaultValue: ORDER_DEFAULTS.refundReminderEveryHours },
+        { name: "refundStoreHours", label: "Seller must send the refund within (hours) of the buyer's QR, else escalated to you", type: "number", required: true, min: 1, max: 168, defaultValue: ORDER_DEFAULTS.refundStoreHours },
+        { name: "refundBuyerConfirmHours", label: "Buyer doesn't confirm 'Refund received' within (hours): closed as unconfirmed", type: "number", required: true, min: 1, max: 336, defaultValue: ORDER_DEFAULTS.refundBuyerConfirmHours },
+        { name: "refundQrFlagDays", label: "Buyer hasn't sent their GCash QR after (days): flagged to you", type: "number", required: true, min: 1, max: 30, defaultValue: ORDER_DEFAULTS.refundQrFlagDays },
       ],
     },
     {

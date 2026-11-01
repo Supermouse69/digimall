@@ -174,9 +174,32 @@ export const Tenants: CollectionConfig = {
           validate: validateServiceAreaPin,
           admin: { description: "Longitude, latitude. Must be inside the delivery area." },
         },
-        { name: "hours", label: "Opening hours", type: "text", maxLength: 100, admin: { placeholder: "e.g. 7 AM – 9 PM daily" } },
+        { name: "hours", label: "Opening hours (text shown to buyers)", type: "text", maxLength: 100, admin: { placeholder: "e.g. 7 AM – 9 PM daily" } },
         { name: "logo", type: "upload", relationTo: "media" },
         { name: "banner", type: "upload", relationTo: "media" },
+      ],
+    },
+    {
+      // Used by the order timers (self-pickup before closing, reminders only during store hours).
+      // Set by the super-admin only (developer decision 2026-11-01).
+      type: "row",
+      fields: [
+        {
+          name: "openingTime",
+          label: "Opens at (HH:MM, 24-hour)",
+          type: "text",
+          access: adminOnlyWrite,
+          validate: (value: string | null | undefined) => (!value || /^([01]\d|2[0-3]):[0-5]\d$/.test(value) ? true : "Use 24-hour time like 07:00"),
+          admin: { placeholder: "07:00", width: "50%" },
+        },
+        {
+          name: "closingTime",
+          label: "Closes at (HH:MM, 24-hour)",
+          type: "text",
+          access: adminOnlyWrite,
+          validate: (value: string | null | undefined) => (!value || /^([01]\d|2[0-3]):[0-5]\d$/.test(value) ? true : "Use 24-hour time like 21:00"),
+          admin: { placeholder: "21:00", width: "50%", description: "Paid-but-unbooked orders become self-pickup some hours before this (Settings)." },
+        },
       ],
     },
     {

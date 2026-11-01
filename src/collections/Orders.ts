@@ -50,6 +50,10 @@ export const Orders: CollectionConfig = {
         { name: "extraStopFee", type: "number", access: locked },
       ],
     },
+    // ---- Paid-but-unbooked timers (Phase 7, CLAUDE.md §8 decided rule) ----
+    { name: "readyToBookAt", label: "Every store paid at", type: "date", access: locked },
+    { name: "bookingReminderAt", label: "Booking reminder sent at", type: "date", access: locked },
+    { name: "selfPickupAt", label: "Became self-pickup at", type: "date", access: locked },
     // ---- Rider booking + trip (Phase 6, CLAUDE.md §11.7) ----
     { name: "rider", label: "Assigned rider", type: "relationship", relationTo: "users", index: true, access: locked },
     {
@@ -83,6 +87,8 @@ export const Orders: CollectionConfig = {
         { name: "by", type: "select", options: ["buyer", "store", "system"], access: locked },
         { name: "reason", type: "text", access: locked },
         { name: "at", type: "date", access: locked },
+        // Where the order was when it was cancelled (for rider compensation per the Terms, CLAUDE.md §11.8)
+        { name: "stage", type: "text", access: locked },
       ],
     },
   ],

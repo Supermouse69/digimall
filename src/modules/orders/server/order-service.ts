@@ -6,13 +6,25 @@ import { PUBLIC_STORE_STATUSES } from "@/lib/access";
 import { fromPoint, isValidLatLng, toPoint, type LatLng } from "@/lib/geo";
 import { relationId } from "@/lib/private-files";
 import type { Media, Order, PrivateMedia, StoreOrder, Tenant, User } from "@/payload-types";
-import { ensureStoreConversation, postChatMessage, type ChatActor, type ChatCtx } from "@/modules/chat/server/chat-service";
+import { closeConversation, ensureStoreConversation, postChatMessage, type ChatActor, type ChatCtx } from "@/modules/chat/server/chat-service";
+import { pushToUsers, sellerIdsOfStore } from "@/modules/notifications/server/push";
 import { orderPlacedTemplate } from "@/modules/email/templates";
 import { getSettings, isInServiceArea, type MarketplaceSettings } from "@/modules/settings/server/settings";
 
 import {
   CODE_ALPHABET,
+  canCancelAtStage,
   canDo,
+  canRefund,
+  isRefundOpen,
+  isWithinStoreHours,
+  needsRefund,
+  nextRefundStatus,
+  REFUND_LABELS,
+  refundTimer,
+  selfPickupCutoff,
+  type RefundAction,
+  type RefundStatus,
   expiredStatus,
   nextStatus,
   orderStatusFrom,
@@ -293,18 +305,40 @@ export const placeOrder = async (
 
 // ---------- loading + timers ----------
 
-const recomputeOrder = async ({ payload, req }: ChatCtx, orderId: string) => {
+const auditSystem = async ({ payload, req }: ChatCtx, action: "refund.escalated" | "order.auto_refunded" | "order.self_pickup", targetCollection: string, targetId: string, details?: Record<string, unknown>) =>
+  payload.create({ collection: "audit-logs", overrideAccess: true, req, data: { action, targetCollection, targetId, details } });
+
+// A rider who was asked, or already heading to the store, is released when the whole order is
+// cancelled before pickup (CLAUDE.md §11.8). The stage + times stay on the order for the Terms.
+const releaseRider = async (ctx: ChatCtx, order: Order) => {
+  const riderId = relationId(order.rider) ?? relationId(order.riderRequest?.rider);
+  if (!riderId) return;
+  await pushToUsers(ctx, [riderId], { title: "Trip cancelled", body: `${order.code} was cancelled before pickup. You're free for other requests.`, url: "/rider", tag: `trip-${order.id}` });
+  const tripId = relationId(order.trip?.conversation);
+  if (tripId) {
+    const trip = await ctx.payload.findByID({ collection: "conversations", id: tripId, depth: 0, overrideAccess: true, req: ctx.req }).catch(() => null);
+    if (trip) {
+      await postChatMessage(ctx, trip, { side: "system", kind: "system", text: `❌ ${order.code} was cancelled before pickup. This trip has ended.`, preview: `❌ ${order.code} cancelled`, notify: "rider" });
+      await closeConversation(ctx, tripId);
+    }
+  }
+};
+
+const recomputeOrder = async (ctx: ChatCtx, orderId: string, cause?: { by: "buyer" | "store" | "system"; reason?: string }) => {
+  const { payload, req } = ctx;
   const order = (await payload.findByID({ collection: "orders", id: orderId, depth: 0, overrideAccess: true, req })) as Order;
   const { docs } = await payload.find({ collection: "store-orders", where: { order: { equals: orderId } }, depth: 0, pagination: false, overrideAccess: true, req });
   const status = orderStatusFrom(order.status as OrderStatus, docs.map((so) => so.status as StoreOrderStatus));
   if (status !== order.status) {
-    await payload.update({
-      collection: "orders",
-      id: orderId,
-      data: { status, ...(status === "cancelled" ? { cancel: { by: "system", reason: "Every store order was cancelled or expired.", at: new Date().toISOString() } } : {}) },
-      overrideAccess: true,
-      req,
-    });
+    const now = new Date().toISOString();
+    const data: Record<string, unknown> = { status };
+    // When every store became paid: the paid-but-unbooked timers start counting from here
+    if (status === "ready_to_book" && !order.readyToBookAt) data.readyToBookAt = now;
+    if (status === "cancelled") {
+      data.cancel = { by: cause?.by ?? "system", reason: cause?.reason ?? "Every store order was cancelled or expired.", at: now, stage: order.status };
+    }
+    await payload.update({ collection: "orders", id: orderId, data, overrideAccess: true, req });
+    if (status === "cancelled" && (order.status === "rider_requested" || order.status === "rider_assigned")) await releaseRider(ctx, order);
   }
   return status;
 };
@@ -318,10 +352,38 @@ const conversationOf = async ({ payload, req }: ChatCtx, storeOrder: StoreOrder)
   return ensureStoreConversation({ payload, req }, relationId(storeOrder.buyer)!, relationId(storeOrder.tenant)!);
 };
 
+// Refund timers (CLAUDE.md §11.9): late store refund -> escalated; buyer never confirms -> closed
+// as unconfirmed; buyer never sends a QR -> flagged to the admin
+const applyRefundTimers = async (ctx: ChatCtx, storeOrder: StoreOrder): Promise<StoreOrder> => {
+  const refund = storeOrder.refund;
+  if (!refund?.status) return storeOrder;
+  const settings = await getSettings(ctx.payload);
+  const change = refundTimer(refund as Parameters<typeof refundTimer>[0], settings, Date.now());
+  if (!change.status && !change.flagQr) return storeOrder;
+  const now = new Date().toISOString();
+  const conversation = await conversationOf(ctx, storeOrder);
+  let data: Record<string, unknown>;
+  let message: { text: string; preview: string; notify: "buyer" | "store" };
+  if (change.status === "escalated") {
+    data = { refund: { ...refund, status: "escalated", escalatedAt: now } };
+    message = { text: `⚠️ The refund for ${storeOrder.code} is late. The DigiMall admin was told. Store: please send it now.`, preview: `⚠️ Refund for ${storeOrder.code} is late`, notify: "store" };
+    await auditSystem(ctx, "refund.escalated", "store-orders", storeOrder.id, { amount: refund.amount });
+  } else if (change.status === "refunded_unconfirmed") {
+    data = { refund: { ...refund, status: "refunded_unconfirmed" } };
+    message = { text: `Refund for ${storeOrder.code} closed: the store sent it, but it wasn't confirmed. If you didn't get it, please report this chat.`, preview: `Refund for ${storeOrder.code} closed`, notify: "buyer" };
+  } else {
+    data = { refund: { ...refund, adminFlaggedAt: now } };
+    message = { text: `Reminder: please send your GCash QR so the store can refund ${storeOrder.code}. The DigiMall admin can now see this refund.`, preview: `Send your GCash QR for ${storeOrder.code}`, notify: "buyer" };
+  }
+  const updated = (await ctx.payload.update({ collection: "store-orders", id: storeOrder.id, data, overrideAccess: true, req: ctx.req })) as StoreOrder;
+  await postChatMessage(ctx, conversation, { side: "system", kind: "system", storeOrderId: storeOrder.id, ...message });
+  return updated;
+};
+
 // Lazy expiry: an order past its timer is closed the moment anyone looks at it or acts on it
 const applyTimers = async (ctx: ChatCtx, storeOrder: StoreOrder): Promise<StoreOrder> => {
   const expired = expiredStatus(storeOrder.status as StoreOrderStatus, storeOrder.expiresAt, Date.now());
-  if (!expired) return storeOrder;
+  if (!expired) return applyRefundTimers(ctx, storeOrder);
   const settings = await getSettings(ctx.payload);
   const reason =
     expired === "expired"
@@ -359,6 +421,55 @@ export const loadStoreOrderFor = async (ctx: ChatCtx, actor: ChatActor, id: stri
   return applyTimers(ctx, storeOrder);
 };
 
+// ---------- cancelling (with refunds) ----------
+
+// Cancels one store order. If the buyer already paid, the refund flow starts (CLAUDE.md §11.9):
+// the buyer sends their own GCash QR in the chat, then the store sends the money.
+const cancelStoreOrder = async (ctx: ChatCtx, storeOrder: StoreOrder, by: "buyer" | "store" | "system", reason: string, senderId?: string) => {
+  const now = new Date().toISOString();
+  const refund = needsRefund(storeOrder.status as StoreOrderStatus);
+  await ctx.payload.update({
+    collection: "store-orders",
+    id: storeOrder.id,
+    data: {
+      status: "cancelled",
+      expiresAt: null,
+      cancel: { by, reason: reason || undefined, at: now },
+      ...(refund ? { refund: { status: "awaiting_buyer_qr", amount: storeOrder.subtotal, startedAt: now } } : {}),
+    },
+    overrideAccess: true,
+    req: ctx.req,
+  });
+  const conversation = await conversationOf(ctx, storeOrder);
+  const who = by === "system" ? "DigiMall" : `the ${by}`;
+  await postChatMessage(ctx, conversation, {
+    side: "system",
+    kind: "system",
+    senderId,
+    storeOrderId: storeOrder.id,
+    text: `❌ ${storeOrder.code} was cancelled by ${who}${reason ? `: ${reason}` : "."}`,
+    preview: `❌ ${storeOrder.code} cancelled`,
+    notify: by === "buyer" ? "store" : "buyer",
+  });
+  if (refund) {
+    await postChatMessage(ctx, conversation, {
+      side: "system",
+      kind: "refund_request",
+      storeOrderId: storeOrder.id,
+      text: `💸 Refund needed for ${storeOrder.code}: ${peso(storeOrder.subtotal)}. Buyer: send YOUR GCash QR here (tap "Send my GCash QR" on the order card). Store: send the refund once you have it.`,
+      preview: `💸 Refund needed for ${storeOrder.code}`,
+      notify: "buyer",
+    });
+    await pushToUsers(ctx, await sellerIdsOfStore(ctx, relationId(storeOrder.tenant)!), {
+      title: "🟠 Refund needed",
+      body: `${storeOrder.code}: ${peso(storeOrder.subtotal)} to refund once the buyer sends their GCash QR.`,
+      url: "/seller/orders",
+      tag: `refund-${storeOrder.id}`,
+    });
+  }
+  return refund;
+};
+
 // ---------- actions ----------
 
 const WHO: Record<StoreOrderAction, "buyer" | "store"> = {
@@ -368,21 +479,36 @@ const WHO: Record<StoreOrderAction, "buyer" | "store"> = {
   submit_payment: "buyer",
   payment_received: "store",
   payment_not_received: "store",
+  buyer_picked_up: "store",
 };
 
 export type ActInput = { reason?: string; receiptId?: string; referenceNo?: string };
+
+const loadOrderById = async ({ payload, req }: ChatCtx, id: string) => (await payload.findByID({ collection: "orders", id, depth: 0, overrideAccess: true, req })) as Order;
 
 export const actOnStoreOrder = async (ctx: ChatCtx, actor: ChatActor, storeOrderId: string, action: StoreOrderAction, input: ActInput = {}) => {
   if (WHO[action] !== actor.side) throw new TRPCError({ code: "FORBIDDEN", message: "You can't do that on this order." });
   return inTransaction(ctx, async (tx) => {
     const storeOrder = await loadStoreOrderFor(tx, actor, storeOrderId);
     const status = storeOrder.status as StoreOrderStatus;
-    if (!canDo(action, status)) {
-      if ((action === "buyer_cancel" || action === "store_cancel") && ["payment_submitted", "paid"].includes(status)) {
-        throw new TRPCError({ code: "CONFLICT", message: "This order is already paid. Talk in the chat; paid-order cancellations and refunds come in a later update." });
-      }
-      throw new TRPCError({ code: "CONFLICT", message: `This order is already: ${STORE_ORDER_LABELS[status]}.` });
+    const order = await loadOrderById(tx, relationId(storeOrder.order)!);
+    const isCancel = action === "buyer_cancel" || action === "store_cancel";
+    // No cancelling after the first pickup (CLAUDE.md §11.8)
+    if (isCancel && !canCancelAtStage(order.status as OrderStatus)) {
+      throw new TRPCError({ code: "CONFLICT", message: "Your items are on the way — this order can't be cancelled." });
     }
+    if (!canDo(action, status)) throw new TRPCError({ code: "CONFLICT", message: `This order is already: ${STORE_ORDER_LABELS[status]}.` });
+    if (action === "buyer_picked_up" && order.status !== "self_pickup") throw new TRPCError({ code: "CONFLICT", message: "Only for self-pickup orders." });
+
+    if (isCancel) {
+      const reason = input.reason?.trim().slice(0, 300) ?? "";
+      if (action === "store_cancel" && reason.length < 3) throw bad("Please write why you're cancelling (e.g., out of stock).");
+      const by = action === "store_cancel" ? "store" : "buyer";
+      const refundStarted = await cancelStoreOrder(tx, storeOrder, by, reason, actor.userId);
+      const orderStatus = await recomputeOrder(tx, order.id, { by, reason });
+      return { status: "cancelled" as StoreOrderStatus, orderStatus, refundStarted };
+    }
+
     const settings = await getSettings(tx.payload);
     const now = new Date();
     const conversation = await conversationOf(tx, storeOrder);
@@ -401,20 +527,6 @@ export const actOnStoreOrder = async (ctx: ChatCtx, actor: ChatActor, storeOrder
           text: `✅ The store confirmed ${storeOrder.code}. Please pay ${peso(storeOrder.subtotal)} by GCash within ${settings.paymentMinutes} minutes, then send your receipt.`,
           preview: `✅ ${storeOrder.code} confirmed: please pay ${peso(storeOrder.subtotal)}`,
           notify: "buyer",
-        };
-        break;
-      }
-      case "store_cancel":
-      case "buyer_cancel": {
-        const reason = input.reason?.trim().slice(0, 300) ?? "";
-        if (action === "store_cancel" && reason.length < 3) throw bad("Please write why you're cancelling (e.g., out of stock).");
-        const by = action === "store_cancel" ? "store" : "buyer";
-        data.expiresAt = null;
-        data.cancel = { by, reason: reason || undefined, at: now.toISOString() };
-        message = {
-          text: `❌ ${storeOrder.code} was cancelled by the ${by}${reason ? `: ${reason}` : "."}`,
-          preview: `❌ ${storeOrder.code} cancelled`,
-          notify: by === "store" ? "buyer" : "store",
         };
         break;
       }
@@ -443,11 +555,7 @@ export const actOnStoreOrder = async (ctx: ChatCtx, actor: ChatActor, storeOrder
       }
       case "payment_received": {
         data.payment = { ...storeOrder.payment, confirmedAt: now.toISOString() };
-        message = {
-          text: `🟢 Payment received for ${storeOrder.code}. The store is preparing your items.`,
-          preview: `🟢 ${storeOrder.code} paid`,
-          notify: "buyer",
-        };
+        message = { text: `🟢 Payment received for ${storeOrder.code}. The store is preparing your items.`, preview: `🟢 ${storeOrder.code} paid`, notify: "buyer" };
         break;
       }
       case "payment_not_received": {
@@ -459,6 +567,14 @@ export const actOnStoreOrder = async (ctx: ChatCtx, actor: ChatActor, storeOrder
         };
         break;
       }
+      case "buyer_picked_up": {
+        data.pickedUpByBuyerAt = now.toISOString();
+        data.deliveredAt = now.toISOString();
+        message = { text: `📦 You picked up ${storeOrder.code} at the store. Thank you!`, preview: `📦 ${storeOrder.code} picked up at the store`, notify: "buyer" };
+        break;
+      }
+      default:
+        throw bad("Unknown action.");
     }
 
     await tx.payload.update({ collection: "store-orders", id: storeOrder.id, data, overrideAccess: true, req: tx.req });
@@ -472,38 +588,213 @@ export const actOnStoreOrder = async (ctx: ChatCtx, actor: ChatActor, storeOrder
       preview: message.preview,
       notify: message.notify,
     });
-    const orderStatus = await recomputeOrder(tx, relationId(storeOrder.order)!);
-    return { status: data.status as StoreOrderStatus, orderStatus };
+    const orderStatus = await recomputeOrder(tx, order.id);
+    return { status: data.status as StoreOrderStatus, orderStatus, refundStarted: false };
   });
 };
 
-// The buyer cancels the whole order: every store order that can still be cancelled
+// The buyer cancels the whole order: every store order that can still be cancelled (paid ones
+// start a refund). Not possible after the first pickup.
 export const cancelWholeOrder = async (ctx: ChatCtx, actor: ChatActor, code: string, reason?: string) => {
   if (actor.side !== "buyer") throw new TRPCError({ code: "FORBIDDEN", message: "Only the buyer can cancel the whole order." });
   const order = await loadOrderFor(ctx, actor, code);
+  if (!canCancelAtStage(order.status as OrderStatus)) throw new TRPCError({ code: "CONFLICT", message: "Your items are on the way — this order can't be cancelled." });
   const { docs } = await ctx.payload.find({ collection: "store-orders", where: { order: { equals: order.id } }, depth: 0, pagination: false, overrideAccess: true, req: ctx.req });
   let cancelled = 0;
-  let kept = 0;
+  let refundsStarted = 0;
   for (const storeOrder of docs as StoreOrder[]) {
     const fresh = await applyTimers(ctx, storeOrder);
     if (canDo("buyer_cancel", fresh.status as StoreOrderStatus)) {
-      await actOnStoreOrder(ctx, actor, fresh.id, "buyer_cancel", { reason });
+      const result = await actOnStoreOrder(ctx, actor, fresh.id, "buyer_cancel", { reason });
       cancelled++;
-    } else if (["payment_submitted", "paid"].includes(fresh.status)) {
-      kept++;
+      if (result.refundStarted) refundsStarted++;
     }
   }
-  return { cancelled, keptPaid: kept };
+  return { cancelled, refundsStarted };
+};
+
+// ---------- refunds (CLAUDE.md §11.9) ----------
+
+const REFUND_WHO: Record<RefundAction, "buyer" | "store"> = { buyer_send_qr: "buyer", store_refund_sent: "store", buyer_refund_received: "buyer" };
+
+export const actOnRefund = async (ctx: ChatCtx, actor: ChatActor, storeOrderId: string, action: RefundAction, fileId?: string) => {
+  if (REFUND_WHO[action] !== actor.side) throw new TRPCError({ code: "FORBIDDEN", message: "You can't do that on this refund." });
+  return inTransaction(ctx, async (tx) => {
+    const storeOrder = await loadStoreOrderFor(tx, actor, storeOrderId);
+    const refund = storeOrder.refund ?? {};
+    if (!canRefund(action, refund.status as RefundStatus | null)) {
+      throw new TRPCError({ code: "CONFLICT", message: refund.status ? `This refund is already: ${REFUND_LABELS[refund.status as RefundStatus]}.` : "There's no refund for this order." });
+    }
+    const conversation = await conversationOf(tx, storeOrder);
+    const now = new Date().toISOString();
+    const needFile = action === "buyer_send_qr" ? "refund-qr" : action === "store_refund_sent" ? "refund-proof" : null;
+    if (needFile) {
+      const file = fileId
+        ? ((await tx.payload.findByID({ collection: "private-media", id: fileId, depth: 0, overrideAccess: true, req: tx.req }).catch(() => null)) as PrivateMedia | null)
+        : null;
+      if (!file || relationId(file.owner) !== actor.userId || file.purpose !== needFile) {
+        throw bad(action === "buyer_send_qr" ? "Please upload a picture of YOUR GCash QR." : "Please upload a screenshot of the GCash refund you sent.");
+      }
+      // The other side sees it because it's posted in their chat
+      await tx.payload.update({ collection: "private-media", id: file.id, data: { conversation: conversation.id } as never, overrideAccess: true, req: tx.req });
+    }
+    const amount = peso(refund.amount ?? storeOrder.subtotal);
+    let data: Record<string, unknown>;
+    let message: { kind: "refund_qr" | "refund_proof" | "system"; side: "buyer" | "store" | "system"; text: string; preview: string; notify: "buyer" | "store"; imageId?: string };
+    if (action === "buyer_send_qr") {
+      data = { ...refund, status: nextRefundStatus(action), buyerQr: fileId, buyerQrAt: now };
+      message = { kind: "refund_qr", side: "buyer", imageId: fileId, text: `🧾 My GCash QR for the ${storeOrder.code} refund (${amount}). Store: please send it, then tap "Refund sent".`, preview: `🧾 Buyer's GCash QR for ${storeOrder.code}`, notify: "store" };
+    } else if (action === "store_refund_sent") {
+      data = { ...refund, status: nextRefundStatus(action), proof: fileId, sentAt: now };
+      message = { kind: "refund_proof", side: "store", imageId: fileId, text: `✅ Refund sent for ${storeOrder.code} (${amount}). Buyer: please check your GCash and tap "Refund received".`, preview: `✅ Refund sent for ${storeOrder.code}`, notify: "buyer" };
+    } else {
+      data = { ...refund, status: nextRefundStatus(action), receivedAt: now };
+      message = { kind: "system", side: "system", text: `🟢 The buyer received the ${storeOrder.code} refund. All done.`, preview: `🟢 Refund received for ${storeOrder.code}`, notify: "store" };
+    }
+    await tx.payload.update({ collection: "store-orders", id: storeOrder.id, data: { refund: data }, overrideAccess: true, req: tx.req });
+    await postChatMessage(tx, conversation, { ...message, senderId: actor.userId, storeOrderId: storeOrder.id });
+    return { refundStatus: data.status as RefundStatus };
+  });
+};
+
+// ---------- paid but not booked (developer decision 2026-11-01, CLAUDE.md §8) ----------
+
+// Reminder after N hours -> self-pickup N hours before the store closes -> after N hours cancelled
+// and refunded automatically. Checked on every read of the order and by the scheduled job.
+export const applyOrderTimers = async (ctx: ChatCtx, order: Order): Promise<Order> => {
+  const status = order.status as OrderStatus;
+  if ((status !== "ready_to_book" && status !== "self_pickup") || !order.readyToBookAt) return order;
+  const settings = await getSettings(ctx.payload);
+  const now = Date.now();
+  const readyAt = Date.parse(order.readyToBookAt);
+  const storeOrders = (await ctx.payload.find({ collection: "store-orders", where: { order: { equals: order.id } }, depth: 0, pagination: false, overrideAccess: true, req: ctx.req })).docs as StoreOrder[];
+  const open = storeOrders.filter((so) => so.status === "paid");
+
+  // 1. Still not booked or picked up after N hours: cancel + refund each paid store order
+  if (now - readyAt >= settings.autoRefundHours * 3_600_000) {
+    return inTransaction(ctx, async (tx) => {
+      for (const so of open) {
+        await cancelStoreOrder(tx, so, "system", `Not booked or picked up within ${settings.autoRefundHours} hours of payment. The store refunds you.`);
+      }
+      await auditSystem(tx, "order.auto_refunded", "orders", order.id, { storeOrders: open.map((so) => so.code) });
+      await recomputeOrder(tx, order.id, { by: "system", reason: "Auto-refund: no rider booked and not picked up in time." });
+      return loadOrderById(tx, order.id);
+    });
+  }
+
+  // 2. N hours before the (earliest) closing time: the buyer picks up at the store(s)
+  if (status === "ready_to_book") {
+    const stores = await Promise.all(open.map((so) => ctx.payload.findByID({ collection: "tenants", id: relationId(so.tenant)!, depth: 0, overrideAccess: true, req: ctx.req }) as Promise<Tenant>));
+    const cutoffs = stores.map((store) => selfPickupCutoff(order.readyToBookAt!, store.closingTime, settings.selfPickupHoursBeforeClosing)).filter((c): c is number => c !== null);
+    const cutoff = cutoffs.length > 0 ? Math.min(...cutoffs) : null;
+    if (cutoff !== null && now >= cutoff) {
+      const updated = (await ctx.payload.update({ collection: "orders", id: order.id, data: { status: "self_pickup", selfPickupAt: new Date(now).toISOString() }, overrideAccess: true, req: ctx.req })) as Order;
+      for (const [index, so] of open.entries()) {
+        const store = stores[index]!;
+        await postChatMessage(ctx, await conversationOf(ctx, so), {
+          side: "system",
+          kind: "system",
+          storeOrderId: so.id,
+          text: `🏪 No rider was booked for ${so.code}, so it's now SELF-PICKUP. Buyer: please pick up your items at ${store.name}${store.closingTime ? ` before ${store.closingTime}` : ""}. Store: tap "Buyer picked up" when they do.`,
+          preview: `🏪 ${so.code} is now self-pickup`,
+          notify: "buyer",
+        });
+      }
+      await auditSystem(ctx, "order.self_pickup", "orders", order.id);
+      return updated;
+    }
+  }
+
+  // 3. Reminder to book a rider (once)
+  if (status === "ready_to_book" && !order.bookingReminderAt && now - readyAt >= settings.bookingReminderHours * 3_600_000) {
+    await pushToUsers(ctx, [relationId(order.buyer)!], {
+      title: "Book your rider",
+      body: `Every store is paid for ${order.code}. Book a rider now, or it becomes self-pickup before the store closes.`,
+      url: `/orders/${order.code}`,
+      tag: `book-${order.id}`,
+    });
+    return (await ctx.payload.update({ collection: "orders", id: order.id, data: { bookingReminderAt: new Date(now).toISOString() }, overrideAccess: true, req: ctx.req })) as Order;
+  }
+  return order;
+};
+
+// ---------- scheduled job (/api/cron/order-timers) ----------
+
+// Runs every timer + the repeated reminders. Without a scheduler the timers still run on every read,
+// but reminders/pushes only go out when this job runs (suggestions/order timer scheduler.txt).
+export const runOrderTimers = async (ctx: ChatCtx) => {
+  const settings = await getSettings(ctx.payload);
+  const now = Date.now();
+  const counts = { orders: 0, storeOrders: 0, refunds: 0, sellerReminders: 0, buyerReminders: 0 };
+
+  const { docs: orders } = await ctx.payload.find({ collection: "orders", where: { status: { in: ["ready_to_book", "self_pickup"] } }, depth: 0, limit: 500, overrideAccess: true, req: ctx.req });
+  for (const order of orders as Order[]) {
+    const after = await applyOrderTimers(ctx, order);
+    if (after.status !== order.status || after.bookingReminderAt !== order.bookingReminderAt) counts.orders++;
+  }
+
+  const { docs: timed } = await ctx.payload.find({
+    collection: "store-orders",
+    where: { and: [{ status: { in: ["awaiting_store", "awaiting_payment"] } }, { expiresAt: { less_than: new Date(now).toISOString() } }] },
+    depth: 0,
+    limit: 500,
+    overrideAccess: true,
+    req: ctx.req,
+  });
+  for (const so of timed as StoreOrder[]) {
+    await applyTimers(ctx, so);
+    counts.storeOrders++;
+  }
+
+  const { docs: refunds } = await ctx.payload.find({
+    collection: "store-orders",
+    where: { "refund.status": { in: ["awaiting_buyer_qr", "awaiting_store_refund", "refund_sent", "escalated"] } },
+    depth: 0,
+    limit: 500,
+    overrideAccess: true,
+    req: ctx.req,
+  });
+  for (const raw of refunds as StoreOrder[]) {
+    const so = await applyRefundTimers(ctx, raw);
+    if (so.refund?.status !== raw.refund?.status) counts.refunds++;
+    // Repeated reminders, only while the store is open (no pings at night)
+    const refund = so.refund;
+    const store = (await ctx.payload.findByID({ collection: "tenants", id: relationId(so.tenant)!, depth: 0, overrideAccess: true, req: ctx.req })) as Tenant;
+    const last = Date.parse(refund?.lastReminderAt ?? refund?.startedAt ?? new Date(now).toISOString());
+    if (!isWithinStoreHours(now, store.openingTime, store.closingTime) || now - last < settings.refundReminderEveryHours * 3_600_000) continue;
+    const amount = peso(refund?.amount ?? so.subtotal);
+    if (refund?.status === "awaiting_store_refund" || refund?.status === "escalated") {
+      await pushToUsers(ctx, await sellerIdsOfStore(ctx, store.id), { title: "🟠 Refund needed", body: `${so.code}: send ${amount} to the buyer's GCash, then tap "Refund sent".`, url: "/seller/orders", tag: `refund-${so.id}` });
+      counts.sellerReminders++;
+    } else if (refund?.status === "awaiting_buyer_qr") {
+      await pushToUsers(ctx, [relationId(so.buyer)!], { title: "Get your refund", body: `Send your GCash QR in the chat so ${store.name} can refund ${amount} (${so.code}).`, url: "/chat", tag: `refund-${so.id}` });
+      counts.buyerReminders++;
+    } else {
+      continue;
+    }
+    await ctx.payload.update({ collection: "store-orders", id: so.id, data: { refund: { ...refund, lastReminderAt: new Date(now).toISOString() } }, overrideAccess: true, req: ctx.req });
+  }
+  return counts;
 };
 
 // ---------- reading ----------
 
-const loadOrderFor = async ({ payload, req }: ChatCtx, actor: ChatActor, code: string) => {
-  const order = (await payload.find({ collection: "orders", where: { code: { equals: code.toUpperCase() } }, depth: 0, limit: 1, overrideAccess: true, req })).docs[0] as
+const loadOrderFor = async (ctx: ChatCtx, actor: ChatActor, code: string) => {
+  const order = (await ctx.payload.find({ collection: "orders", where: { code: { equals: code.toUpperCase() } }, depth: 0, limit: 1, overrideAccess: true, req: ctx.req })).docs[0] as
     | Order
     | undefined;
   if (!order || actor.side !== "buyer" || relationId(order.buyer) !== actor.userId) throw notFound();
-  return order;
+  // Paid-but-unbooked timers run on every look (CLAUDE.md §11.6 lazy timers)
+  return applyOrderTimers(ctx, order);
+};
+
+export type RefundView = {
+  status: RefundStatus;
+  label: string;
+  amount: number;
+  buyerQrUrl: string | null;
+  proofUrl: string | null;
+  flagged: boolean;
 };
 
 export type StoreOrderView = {
@@ -511,7 +802,7 @@ export type StoreOrderView = {
   code: string;
   status: StoreOrderStatus;
   statusLabel: string;
-  store: { name: string; slug: string; logoUrl: string | null };
+  store: { name: string; slug: string; logoUrl: string | null; openingTime: string | null; closingTime: string | null };
   items: { name: string; price: number; qty: number }[];
   subtotal: number;
   expiresAt: string | null;
@@ -528,14 +819,26 @@ export type StoreOrderView = {
   // The parent order (for the store: what it may see)
   order: { code: string; mode: DeliveryMode; status: OrderStatus; buyerName: string; barangay: string | null };
   actions: StoreOrderAction[];
+  // Cancelling now would start a refund (the buyer already paid)
+  cancelNeedsRefund: boolean;
+  refund: RefundView | null;
+  refundActions: RefundAction[];
   viewer: ChatActor["side"];
 };
 
 const ACTIONS_FOR: Record<ChatActor["side"], StoreOrderAction[]> = {
   buyer: ["buyer_cancel", "submit_payment"],
-  store: ["store_confirm", "store_cancel", "payment_received", "payment_not_received"],
+  store: ["store_confirm", "store_cancel", "payment_received", "payment_not_received", "buyer_picked_up"],
   rider: [],
 };
+const REFUND_ACTIONS_FOR: Record<ChatActor["side"], RefundAction[]> = {
+  buyer: ["buyer_send_qr", "buyer_refund_received"],
+  store: ["store_refund_sent"],
+  rider: [],
+};
+
+const fileUrlOf = async ({ payload, req }: ChatCtx, id: string | null) =>
+  id ? (((await payload.findByID({ collection: "private-media", id, depth: 0, overrideAccess: true, req }).catch(() => null)) as PrivateMedia | null)?.url ?? null) : null;
 
 const toView = async (ctx: ChatCtx, actor: ChatActor, raw: StoreOrder, settings: MarketplaceSettings): Promise<StoreOrderView> => {
   const storeOrder = await applyTimers(ctx, raw);
@@ -544,23 +847,33 @@ const toView = async (ctx: ChatCtx, actor: ChatActor, raw: StoreOrder, settings:
     ctx.payload.findByID({ collection: "orders", id: relationId(storeOrder.order)!, depth: 0, overrideAccess: true, req: ctx.req }) as Promise<Order>,
   ]);
   const status = storeOrder.status as StoreOrderStatus;
+  const orderStatus = order.status as OrderStatus;
   const payment = storeOrder.payment ?? {};
-  const receipt = relationId(payment.receipt)
-    ? ((await ctx.payload.findByID({ collection: "private-media", id: relationId(payment.receipt)!, depth: 0, overrideAccess: true, req: ctx.req }).catch(() => null)) as PrivateMedia | null)
-    : null;
   // The buyer sees the store's GCash QR only while paying, and only once the admin approved it
-  let gcashQrUrl: string | null = null;
-  if (actor.side === "buyer" && ["awaiting_payment", "payment_submitted"].includes(status) && store.gcashQrApproved && relationId(store.gcashQr)) {
-    const qr = (await ctx.payload.findByID({ collection: "private-media", id: relationId(store.gcashQr)!, depth: 0, overrideAccess: true, req: ctx.req }).catch(() => null)) as PrivateMedia | null;
-    gcashQrUrl = qr?.url ?? null;
-  }
+  const showQr = actor.side === "buyer" && ["awaiting_payment", "payment_submitted"].includes(status) && store.gcashQrApproved && relationId(store.gcashQr);
   const submittedAt = payment.submittedAt ?? null;
+  const refund = storeOrder.refund?.status
+    ? {
+        status: storeOrder.refund.status as RefundStatus,
+        label: REFUND_LABELS[storeOrder.refund.status as RefundStatus],
+        amount: storeOrder.refund.amount ?? storeOrder.subtotal,
+        buyerQrUrl: await fileUrlOf(ctx, relationId(storeOrder.refund.buyerQr)),
+        proofUrl: await fileUrlOf(ctx, relationId(storeOrder.refund.proof)),
+        flagged: Boolean(storeOrder.refund.adminFlaggedAt || storeOrder.refund.escalatedAt),
+      }
+    : null;
+  const actions = ACTIONS_FOR[actor.side].filter((action) => {
+    if (!canDo(action, status)) return false;
+    if ((action === "buyer_cancel" || action === "store_cancel") && !canCancelAtStage(orderStatus)) return false;
+    if (action === "buyer_picked_up" && orderStatus !== "self_pickup") return false;
+    return true;
+  });
   return {
     id: storeOrder.id,
     code: storeOrder.code,
     status,
     statusLabel: STORE_ORDER_LABELS[status],
-    store: { name: store.name, slug: store.slug, logoUrl: mediaUrl(store.logo) },
+    store: { name: store.name, slug: store.slug, logoUrl: mediaUrl(store.logo), openingTime: store.openingTime ?? null, closingTime: store.closingTime ?? null },
     items: (storeOrder.items ?? []).map((item) => ({ name: item.name, price: item.price, qty: item.qty })),
     subtotal: storeOrder.subtotal,
     expiresAt: storeOrder.expiresAt ?? null,
@@ -570,20 +883,23 @@ const toView = async (ctx: ChatCtx, actor: ChatActor, raw: StoreOrder, settings:
     paymentNotReceived: Boolean(payment.notReceivedAt),
     // Not checked by the seller after N minutes: flagged (reminder + admin attention, CLAUDE.md §11.5)
     paymentNeedsCheck: status === "payment_submitted" && Boolean(submittedAt) && Date.now() - Date.parse(submittedAt!) > settings.paymentCheckReminderMinutes * 60_000,
-    receiptUrl: receipt?.url ?? null,
+    receiptUrl: await fileUrlOf(ctx, relationId(payment.receipt)),
     referenceNo: payment.referenceNo ?? null,
-    gcashQrUrl,
+    gcashQrUrl: showQr ? await fileUrlOf(ctx, relationId(store.gcashQr)) : null,
     conversationId: relationId(storeOrder.conversation),
     createdAt: storeOrder.createdAt,
     order: {
       code: order.code,
       mode: order.mode as DeliveryMode,
-      status: order.status as OrderStatus,
+      status: orderStatus,
       // Stores see the buyer's name on orders and the barangay only, never the address (CLAUDE.md §10 table)
       buyerName: order.delivery?.buyerName ?? "Buyer",
       barangay: order.delivery?.barangay ?? null,
     },
-    actions: ACTIONS_FOR[actor.side].filter((action) => canDo(action, status)),
+    actions,
+    cancelNeedsRefund: needsRefund(status),
+    refund,
+    refundActions: refund ? REFUND_ACTIONS_FOR[actor.side].filter((action) => canRefund(action, refund.status)) : [],
     viewer: actor.side,
   };
 };
@@ -598,7 +914,8 @@ export const buyerOrders = async (ctx: ChatCtx, actor: ChatActor) => {
   if (actor.side !== "buyer") return [];
   const { docs } = await ctx.payload.find({ collection: "orders", where: { buyer: { equals: actor.userId } }, sort: "-createdAt", depth: 0, limit: 50, overrideAccess: true, req: ctx.req });
   const result = [];
-  for (const order of docs as Order[]) {
+  for (const raw of docs as Order[]) {
+    const order = await applyOrderTimers(ctx, raw);
     const storeOrders = (await ctx.payload.find({ collection: "store-orders", where: { order: { equals: order.id } }, depth: 0, pagination: false, overrideAccess: true, req: ctx.req })).docs as StoreOrder[];
     const fresh = await Promise.all(storeOrders.map((so) => applyTimers(ctx, so)));
     const current = (await ctx.payload.findByID({ collection: "orders", id: order.id, depth: 0, overrideAccess: true, req: ctx.req })) as Order;
@@ -609,6 +926,7 @@ export const buyerOrders = async (ctx: ChatCtx, actor: ChatActor) => {
       createdAt: order.createdAt,
       storeCount: fresh.length,
       total: fresh.filter((so) => !["cancelled", "expired"].includes(so.status)).reduce((sum, so) => sum + so.subtotal, 0),
+      refundPending: fresh.some((so) => isRefundOpen(so.refund?.status as RefundStatus | null)),
     });
   }
   return result;
@@ -622,9 +940,11 @@ export const buyerOrderDetail = async (ctx: ChatCtx, actor: ChatActor, code: str
   const views = [];
   for (const storeOrder of storeOrders) views.push(await toView(ctx, actor, storeOrder, settings));
   const current = (await ctx.payload.findByID({ collection: "orders", id: order.id, depth: 0, overrideAccess: true, req: ctx.req })) as Order;
+  const status = current.status as OrderStatus;
+  const readyAt = current.readyToBookAt ? Date.parse(current.readyToBookAt) : null;
   return {
     code: order.code,
-    status: current.status as OrderStatus,
+    status,
     mode: order.mode as DeliveryMode,
     createdAt: order.createdAt,
     // The buyer's own delivery pin (for their trip map)
@@ -638,31 +958,52 @@ export const buyerOrderDetail = async (ctx: ChatCtx, actor: ChatActor, code: str
     itemsTotal: views.filter((view) => !["cancelled", "expired"].includes(view.status)).reduce((sum, view) => sum + view.subtotal, 0),
     storeOrders: views,
     canCancelOrder: views.some((view) => view.actions.includes("buyer_cancel")),
+    // Paid but not booked: what happens when (developer decision 2026-11-01)
+    unbooked:
+      readyAt && (status === "ready_to_book" || status === "self_pickup")
+        ? {
+            remind: Date.now() - readyAt >= settings.bookingReminderHours * 3_600_000,
+            autoRefundAt: new Date(readyAt + settings.autoRefundHours * 3_600_000).toISOString(),
+            selfPickupHoursBeforeClosing: settings.selfPickupHoursBeforeClosing,
+          }
+        : null,
   };
 };
 
-// Seller's Orders board (tile grid, CLAUDE.md §13)
+// Seller's Orders board (tile grid, CLAUDE.md §13). Refunds the store still owes stay on the board
+// (pinned on top) even though the order itself is cancelled.
 export const storeBoard = async (ctx: ChatCtx, actor: ChatActor, filter: "active" | "done" = "active") => {
   if (actor.side !== "store") return [];
   const settings = await getSettings(ctx.payload);
+  const openRefund: Where = { "refund.status": { in: ["awaiting_buyer_qr", "awaiting_store_refund", "refund_sent", "escalated"] } };
   const where: Where = {
     and: [
       { tenant: { in: actor.tenantIds } },
       filter === "active"
-        ? { status: { in: ["awaiting_store", "awaiting_payment", "payment_submitted", "paid"] } }
+        ? { or: [{ status: { in: ["awaiting_store", "awaiting_payment", "payment_submitted", "paid"] } }, openRefund] }
         : { status: { in: ["picked_up", "delivered", "cancelled", "expired"] } },
     ],
   };
   const { docs } = await ctx.payload.find({ collection: "store-orders", where, sort: "-createdAt", depth: 0, limit: 100, overrideAccess: true, req: ctx.req });
+  // Paid-but-unbooked timers of these orders run on every look too
+  const orderIds = [...new Set((docs as StoreOrder[]).map((so) => relationId(so.order)!))];
+  for (const id of orderIds) await applyOrderTimers(ctx, await loadOrderById(ctx, id));
   const views = [];
-  for (const storeOrder of docs as StoreOrder[]) views.push(await toView(ctx, actor, storeOrder, settings));
-  // An order that just expired moves out of "active"
-  return filter === "active" ? views.filter((view) => !["cancelled", "expired"].includes(view.status)) : views;
+  for (const storeOrder of docs as StoreOrder[]) {
+    const fresh = (await ctx.payload.findByID({ collection: "store-orders", id: storeOrder.id, depth: 0, overrideAccess: true, req: ctx.req })) as StoreOrder;
+    views.push(await toView(ctx, actor, fresh, settings));
+  }
+  const refundOpen = (view: StoreOrderView) => isRefundOpen(view.refund?.status);
+  const active = views.filter((view) => !["cancelled", "expired"].includes(view.status) || refundOpen(view));
+  // 🟠 REFUND NEEDED first (CLAUDE.md §11.9)
+  return filter === "active" ? active.sort((a, b) => Number(refundOpen(b)) - Number(refundOpen(a))) : views.filter((view) => !refundOpen(view));
 };
 
-// Bubble number for sellers: orders waiting for the store to act
+// Bubble number for sellers: orders waiting for the store to act (incl. refunds to send)
 export const storeAttentionCount = async (ctx: ChatCtx, actor: ChatActor) => {
   if (actor.side !== "store") return 0;
   const views = await storeBoard(ctx, actor, "active");
-  return views.filter((view) => view.status === "awaiting_store" || view.status === "payment_submitted").length;
+  return views.filter(
+    (view) => view.status === "awaiting_store" || view.status === "payment_submitted" || view.refundActions.includes("store_refund_sent") || (view.order.status === "self_pickup" && view.status === "paid"),
+  ).length;
 };

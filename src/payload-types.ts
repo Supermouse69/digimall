@@ -270,6 +270,11 @@ export interface Tenant {
   hours?: string | null;
   logo?: (string | null) | Media;
   banner?: (string | null) | Media;
+  openingTime?: string | null;
+  /**
+   * Paid-but-unbooked orders become self-pickup some hours before this (Settings).
+   */
+  closingTime?: string | null;
   /**
    * Buyers never see this (they use chat). Riders see it during a trip.
    */
@@ -328,7 +333,9 @@ export interface PrivateMedia {
     | 'store-bir'
     | 'store-dti-sec'
     | 'chat-image'
-    | 'payment-receipt';
+    | 'payment-receipt'
+    | 'refund-qr'
+    | 'refund-proof';
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -406,6 +413,9 @@ export interface Order {
     extraStops?: number | null;
     extraStopFee?: number | null;
   };
+  readyToBookAt?: string | null;
+  bookingReminderAt?: string | null;
+  selfPickupAt?: string | null;
   rider?: (string | null) | User;
   riderRequest?: {
     rider?: (string | null) | User;
@@ -425,6 +435,7 @@ export interface Order {
     by?: ('buyer' | 'store' | 'system') | null;
     reason?: string | null;
     at?: string | null;
+    stage?: string | null;
   };
   updatedAt: string;
   createdAt: string;
@@ -592,7 +603,16 @@ export interface Message {
   conversation: string | Conversation;
   side: 'buyer' | 'store' | 'rider' | 'system';
   sender?: (string | null) | User;
-  kind: 'text' | 'image' | 'product_ref' | 'system' | 'order_card' | 'payment_receipt';
+  kind:
+    | 'text'
+    | 'image'
+    | 'product_ref'
+    | 'system'
+    | 'order_card'
+    | 'payment_receipt'
+    | 'refund_request'
+    | 'refund_qr'
+    | 'refund_proof';
   text?: string | null;
   image?: (string | null) | PrivateMedia;
   product?: (string | null) | Product;
@@ -649,6 +669,29 @@ export interface StoreOrder {
   confirmedAt?: string | null;
   pickedUpAt?: string | null;
   deliveredAt?: string | null;
+  pickedUpByBuyerAt?: string | null;
+  refund?: {
+    status?:
+      | (
+          | 'awaiting_buyer_qr'
+          | 'awaiting_store_refund'
+          | 'refund_sent'
+          | 'refunded'
+          | 'refunded_unconfirmed'
+          | 'escalated'
+        )
+      | null;
+    amount?: number | null;
+    startedAt?: string | null;
+    buyerQr?: (string | null) | PrivateMedia;
+    buyerQrAt?: string | null;
+    proof?: (string | null) | PrivateMedia;
+    sentAt?: string | null;
+    receivedAt?: string | null;
+    escalatedAt?: string | null;
+    adminFlaggedAt?: string | null;
+    lastReminderAt?: string | null;
+  };
   cancel?: {
     by?: ('buyer' | 'store' | 'system') | null;
     reason?: string | null;
@@ -709,7 +752,10 @@ export interface AuditLog {
     | 'store.gcash_qr_approval_changed'
     | 'product.visibility_changed'
     | 'report.status_changed'
-    | 'chat.viewed';
+    | 'chat.viewed'
+    | 'refund.escalated'
+    | 'order.auto_refunded'
+    | 'order.self_pickup';
   actor?: (string | null) | User;
   targetCollection?: string | null;
   targetId?: string | null;
@@ -1051,6 +1097,8 @@ export interface TenantsSelect<T extends boolean = true> {
   hours?: T;
   logo?: T;
   banner?: T;
+  openingTime?: T;
+  closingTime?: T;
   phone?: T;
   gcashQr?: T;
   gcashQrApproved?: T;
@@ -1163,6 +1211,9 @@ export interface OrdersSelect<T extends boolean = true> {
         extraStops?: T;
         extraStopFee?: T;
       };
+  readyToBookAt?: T;
+  bookingReminderAt?: T;
+  selfPickupAt?: T;
   rider?: T;
   riderRequest?:
     | T
@@ -1188,6 +1239,7 @@ export interface OrdersSelect<T extends boolean = true> {
         by?: T;
         reason?: T;
         at?: T;
+        stage?: T;
       };
   updatedAt?: T;
   createdAt?: T;
@@ -1229,6 +1281,22 @@ export interface StoreOrdersSelect<T extends boolean = true> {
   confirmedAt?: T;
   pickedUpAt?: T;
   deliveredAt?: T;
+  pickedUpByBuyerAt?: T;
+  refund?:
+    | T
+    | {
+        status?: T;
+        amount?: T;
+        startedAt?: T;
+        buyerQr?: T;
+        buyerQrAt?: T;
+        proof?: T;
+        sentAt?: T;
+        receivedAt?: T;
+        escalatedAt?: T;
+        adminFlaggedAt?: T;
+        lastReminderAt?: T;
+      };
   cancel?:
     | T
     | {
@@ -1375,6 +1443,13 @@ export interface Setting {
   fareExtraStopFee: number;
   riderRequestSeconds: number;
   riderLocationFreshMinutes: number;
+  bookingReminderHours: number;
+  selfPickupHoursBeforeClosing: number;
+  autoRefundHours: number;
+  refundReminderEveryHours: number;
+  refundStoreHours: number;
+  refundBuyerConfirmHours: number;
+  refundQrFlagDays: number;
   /**
    * Messages are deleted this many days after the last message (CLAUDE.md §11.3). Chats under a report are kept until you resolve it.
    */
@@ -1405,6 +1480,13 @@ export interface SettingsSelect<T extends boolean = true> {
   fareExtraStopFee?: T;
   riderRequestSeconds?: T;
   riderLocationFreshMinutes?: T;
+  bookingReminderHours?: T;
+  selfPickupHoursBeforeClosing?: T;
+  autoRefundHours?: T;
+  refundReminderEveryHours?: T;
+  refundStoreHours?: T;
+  refundBuyerConfirmHours?: T;
+  refundQrFlagDays?: T;
   chatRetentionDays?: T;
   updatedAt?: T;
   createdAt?: T;

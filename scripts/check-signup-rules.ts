@@ -40,6 +40,13 @@ const settings: MarketplaceSettings = {
   fareExtraStopFee: 0,
   riderRequestSeconds: 120,
   riderLocationFreshMinutes: 5,
+  bookingReminderHours: 3,
+  selfPickupHoursBeforeClosing: 2,
+  autoRefundHours: 24,
+  refundReminderEveryHours: 3,
+  refundStoreHours: 24,
+  refundBuyerConfirmHours: 72,
+  refundQrFlagDays: 3,
 };
 check("center is inside", isInServiceArea(settings, { lat: 14.916, lng: 120.766 }), true);
 check("~3 km away is inside", isInServiceArea(settings, { lat: 14.943, lng: 120.766 }), true);

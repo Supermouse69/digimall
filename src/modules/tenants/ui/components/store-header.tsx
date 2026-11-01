@@ -66,6 +66,13 @@ export const StoreHeader = ({ slug }: { slug: string }) => {
                 <dd>{address}</dd>
               </div>
             )}
+            {store.openingTime && store.closingTime && (
+              <div className="flex gap-2 items-start">
+                <dt className="sr-only">Open</dt>
+                <ClockIcon className="size-4 mt-0.5 shrink-0" />
+                <dd>Open {store.openingTime} – {store.closingTime}</dd>
+              </div>
+            )}
             {store.hours && (
               <div className="flex gap-2 items-start">
                 <dt className="sr-only">Opening hours</dt>

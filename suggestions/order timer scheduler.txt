@@ -1,0 +1,41 @@
+Title: Run the order timers job often (reminders + repeated refund reminders)
+Date: 2026-11-01
+Priority: High
+Area: infra / cost / flow
+
+What's the problem?
+Phase 7 added time-based rules (your decision 2026-11-01):
+- 3 h after every store is paid: remind the buyer to book a rider
+- 2 h before the store closes: self-pickup
+- 1 day: cancel + refund automatically
+- refunds: remind the seller every 3 h during store hours, escalate after 24 h, etc.
+
+The STATUS changes already happen by themselves whenever anyone opens the order, board, chat or
+rider portal ("lazy timers", CLAUDE.md §11.6). But REMINDERS and PUSH notifications only go out
+when the job /api/cron/order-timers runs. Nobody is "looking" at night, or when a seller ignores
+a refund.
+
+Vercel Hobby (free) can only run a scheduled job ONCE A DAY (CLAUDE.md §6). That's too slow for
+"remind every 3 hours".
+
+Why it matters (what could go wrong):
+Sellers who never open the app won't get the repeated refund reminders you asked for. Buyers won't
+get the 3-hour "book your rider" push on time.
+
+What I suggest (pick one):
+A) Free external scheduler (e.g. cron-job.org, free): it calls
+   https://digimall.online/api/cron/order-timers every 15–30 min with the header
+   "Authorization: Bearer <CRON_SECRET>". No code change. Needs an account on that site.
+   The secret stays only in their dashboard and in Vercel.
+B) Vercel Pro (paid, ~US$20/month): Vercel Cron can then run every few minutes. You're likely
+   moving to Pro anyway before going live with real stores (Vercel Hobby = non-commercial only).
+C) Until deploy: run `bun run orders:timers` by hand when testing.
+
+Also at deploy: add both jobs to Vercel Cron (vercel.json):
+- /api/cron/chat-cleanup  daily
+- /api/cron/order-timers  as often as the plan allows
+
+Effort and cost: A = free, 10 minutes. B = paid.
+Trade-offs / risks: A depends on a third-party service (if it's down, reminders are late, but
+the status rules still run on every visit). Keep CRON_SECRET long and secret; rotate it if it leaks.
+What I need from you: Choose A or B before going live (Phase 9).

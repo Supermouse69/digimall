@@ -16,6 +16,8 @@ export const PRIVATE_MEDIA_PURPOSES = [
   "store-dti-sec",
   "chat-image",
   "payment-receipt",
+  "refund-qr",
+  "refund-proof",
 ] as const;
 export type PrivateMediaPurpose = (typeof PRIVATE_MEDIA_PURPOSES)[number];
 

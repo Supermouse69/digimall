@@ -23,8 +23,12 @@ export const SellerBoardView = ({ embedded }: { embedded: boolean }) => {
   const [openId, setOpenId] = useState<string | null>(null);
   const board = useQuery({ ...trpc.orders.board.queryOptions({ filter }), refetchInterval: whenVisible(15000) });
 
-  const needsStore = (status: string) => status === "awaiting_store" || status === "payment_submitted";
-  const tiles = [...(board.data ?? [])].sort((a, b) => Number(needsStore(b.status)) - Number(needsStore(a.status)));
+  const refundNeeded = (tile: { refundActions: string[] }) => tile.refundActions.includes("store_refund_sent");
+  const needsStore = (tile: { status: string; refundActions: string[]; order: { status: string } }) =>
+    tile.status === "awaiting_store" || tile.status === "payment_submitted" || refundNeeded(tile) || (tile.order.status === "self_pickup" && tile.status === "paid");
+  // 🟠 REFUND NEEDED pinned on top (CLAUDE.md §11.9), then orders waiting for the store
+  const rank = (tile: Parameters<typeof needsStore>[0]) => (refundNeeded(tile) ? 2 : needsStore(tile) ? 1 : 0);
+  const tiles = [...(board.data ?? [])].sort((a, b) => rank(b) - rank(a));
 
   return (
     <div className={cn("flex flex-col gap-4 px-4 py-4", embedded ? "h-dvh overflow-y-auto bg-white" : "max-w-5xl mx-auto min-h-screen")}>
@@ -54,12 +58,16 @@ export const SellerBoardView = ({ embedded }: { embedded: boolean }) => {
               onClick={() => setOpenId(tile.id)}
               className={cn(
                 "w-full h-full text-left rounded-md border-2 bg-white p-3 flex flex-col gap-1",
-                needsStore(tile.status) ? "border-black" : "border-neutral-200",
+                refundNeeded(tile) ? "border-orange-500 bg-orange-50" : needsStore(tile) ? "border-black" : "border-neutral-200",
               )}
             >
-              <ModeBadge mode={tile.order.mode} />
+              {refundNeeded(tile) ? (
+                <span className="rounded bg-orange-600 text-white text-xs font-semibold px-2 py-0.5 w-fit">🟠 REFUND NEEDED</span>
+              ) : (
+                <ModeBadge mode={tile.order.mode} />
+              )}
               <span className="font-semibold">{tile.code}</span>
-              <span className="text-sm">{tile.statusLabel}</span>
+              <span className="text-sm">{tile.refund ? tile.refund.label : tile.order.status === "self_pickup" && tile.status === "paid" ? "🏪 Self-pickup" : tile.statusLabel}</span>
               <span className="text-sm text-neutral-600">{tile.order.buyerName}</span>
               <span className="text-sm">{formatCurrency(tile.subtotal)} · {timeLabel(tile.createdAt)}</span>
               {tile.paymentNeedsCheck && <span className="text-xs font-semibold text-red-700">⚠️ Check payment</span>}

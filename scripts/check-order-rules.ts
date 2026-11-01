@@ -2,6 +2,12 @@
 // The order state machine (CLAUDE.md §11.5): which step can happen when, the timers, and when the
 // parent order becomes "ready to book". No database.
 import {
+  canCancelAtStage,
+  canRefund,
+  isWithinStoreHours,
+  needsRefund,
+  refundTimer,
+  selfPickupCutoff,
   approxKm,
   canDeliver,
   canPickUp,
@@ -30,8 +36,11 @@ check("store confirms only a new order", allowedFrom("store_confirm"), ["awaitin
 check("buyer pays only after the store confirmed", allowedFrom("submit_payment"), ["awaiting_payment"]);
 check("store marks paid only after a receipt was sent", allowedFrom("payment_received"), ["payment_submitted"]);
 check("'not received' only after a receipt was sent", allowedFrom("payment_not_received"), ["payment_submitted"]);
-check("buyer cancels only BEFORE paying (paid = refund flow, Phase 7)", allowedFrom("buyer_cancel"), ["awaiting_store", "awaiting_payment"]);
-check("store cancels only BEFORE payment", allowedFrom("store_cancel"), ["awaiting_store", "awaiting_payment"]);
+check("buyer can cancel until pickup (paid ones start a refund)", allowedFrom("buyer_cancel"), ["awaiting_store", "awaiting_payment", "payment_submitted", "paid"]);
+check("store can cancel until pickup (paid ones start a refund)", allowedFrom("store_cancel"), ["awaiting_store", "awaiting_payment", "payment_submitted", "paid"]);
+check("cancelling a paid or receipt-sent order needs a refund", [needsRefund("paid"), needsRefund("payment_submitted"), needsRefund("awaiting_payment")], [true, true, false]);
+check("no cancelling once on the way / delivered", [canCancelAtStage("rider_assigned"), canCancelAtStage("on_the_way"), canCancelAtStage("delivered")], [true, false, false]);
+check("'Buyer picked up' only for a paid store order", allowedFrom("buyer_picked_up"), ["paid"]);
 check("confirm -> waiting for payment", nextStatus("store_confirm", "awaiting_store"), "awaiting_payment");
 check("receipt -> payment submitted", nextStatus("submit_payment", "awaiting_payment"), "payment_submitted");
 check("payment received -> paid", nextStatus("payment_received", "payment_submitted"), "paid");
@@ -69,6 +78,29 @@ check("not before every store is picked up", canDeliver("on_the_way", ["picked_u
 check("not before the first pickup", canDeliver("rider_assigned", ["paid"]), false);
 check("approx distance ~0.8 km", approxKm(0.83), "~0.8 km");
 check("approx distance ~12 km", approxKm(12.4), "~12 km");
+
+console.log("--- Refunds ---");
+check("refund steps: QR -> sent -> received", [canRefund("buyer_send_qr", "awaiting_buyer_qr"), canRefund("store_refund_sent", "awaiting_store_refund"), canRefund("buyer_refund_received", "refund_sent")], [true, true, true]);
+check("store can still send after escalation", canRefund("store_refund_sent", "escalated"), true);
+check("can't confirm before it was sent", canRefund("buyer_refund_received", "awaiting_store_refund"), false);
+const H = { refundStoreHours: 24, refundBuyerConfirmHours: 72, refundQrFlagDays: 3 };
+const hoursAgo = (h: number) => new Date(now - h * 3_600_000).toISOString();
+check("store late (24 h after the buyer's QR) -> escalated", refundTimer({ status: "awaiting_store_refund", buyerQrAt: hoursAgo(25) }, H, now), { status: "escalated" });
+check("buyer never confirms (72 h) -> closed unconfirmed", refundTimer({ status: "refund_sent", sentAt: hoursAgo(73) }, H, now), { status: "refunded_unconfirmed" });
+check("buyer never sends a QR (3 days) -> flagged to admin", refundTimer({ status: "awaiting_buyer_qr", startedAt: hoursAgo(73) }, H, now), { flagQr: true });
+check("not yet -> nothing", refundTimer({ status: "awaiting_store_refund", buyerQrAt: hoursAgo(2) }, H, now), {});
+
+console.log("--- Self-pickup + store hours (Asia/Manila) ---");
+// 2026-11-01 10:00 Manila = 02:00 UTC
+const readyMorning = "2026-11-01T02:00:00Z";
+check("closes 21:00, 2 h before -> self-pickup at 19:00 Manila (11:00 UTC)", new Date(selfPickupCutoff(readyMorning, "21:00", 2)!).toISOString(), "2026-11-01T11:00:00.000Z");
+check("ready AFTER that day's cut-off -> next day's 19:00", new Date(selfPickupCutoff("2026-11-01T12:00:00Z", "21:00", 2)!).toISOString(), "2026-11-02T11:00:00.000Z");
+check("no closing time set -> no self-pickup", selfPickupCutoff(readyMorning, null, 2), null);
+check("10:00 Manila is within 07:00–21:00", isWithinStoreHours(Date.parse(readyMorning), "07:00", "21:00"), true);
+check("22:00 Manila is outside 07:00–21:00 (no reminders at night)", isWithinStoreHours(Date.parse("2026-11-01T14:00:00Z"), "07:00", "21:00"), false);
+check("no hours set -> always", isWithinStoreHours(now, null, null), true);
+check("self-pickup order: all picked up -> delivered", orderStatusFrom("self_pickup", ["delivered", "cancelled"]), "delivered");
+check("everything cancelled while a rider was assigned -> cancelled (rider released)", orderStatusFrom("rider_assigned", ["cancelled"]), "cancelled");
 
 console.log("--- Order codes ---");
 check("DM-7K3Q is valid", isOrderCode("DM-7K3Q"), true);

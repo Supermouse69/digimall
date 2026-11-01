@@ -136,7 +136,8 @@ src/
   payload-types.ts    generated — run `bun run generate:types`, don't edit by hand
   seed.ts             dev seed script (writes to the DB — ask first)
 scripts/              checks: `bun run test:access | test:redirects | test:signup | test:emails | test:2fa | test:bot-protection | test:order-rules`
-                      DB checks (real dev DB, inside cancelled transactions): `test:invites | test:rider-docs | test:admin-login | test:stores | test:chat | test:orders | test:trips`
+                      DB checks (real dev DB, inside cancelled transactions): `test:invites | test:rider-docs | test:admin-login | test:stores | test:chat | test:orders | test:trips | test:refunds`
+                      `orders:timers` runs the order/refund timers + reminders now (same as /api/cron/order-timers; writes to the DB)
                       `test:order-rules` checks the order state machine (no DB)
                       `chat:cleanup` deletes expired chats (same as the daily /api/cron/chat-cleanup; writes to the DB)
                       `admin:reset-2fa <email> [--new-password]` emergency 2FA reset (writes to the DB)
@@ -149,6 +150,7 @@ suggestions/check_phase3/ Phase 3 check list for the developer
 suggestions/check_phase4/ Phase 4 (chat) check list for the developer
 suggestions/check_phase5/ Phase 5 (cart + checkout) check list for the developer
 suggestions/check_phase6/ Phase 6 (riders + trips + push) check list for the developer
+suggestions/check_phase7/ Phase 7 (cancellations + refunds) check list for the developer
 media/                local public uploads, gitignored (moves to Vercel Blob later)
 private-media/        local PRIVATE uploads (IDs, licenses, landmark photos), gitignored (Vercel Private Blob later)
 backups/              local DB backups made before migrations, gitignored (contain personal data)

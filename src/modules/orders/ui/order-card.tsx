@@ -10,16 +10,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn, formatCurrency } from "@/lib/utils";
 
-import type { StoreOrderAction } from "../state";
+import type { RefundAction, StoreOrderAction } from "../state";
 
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 const whenVisible = (ms: number) => () => (typeof document !== "undefined" && document.visibilityState === "visible" ? ms : false);
 
-// Payment receipts go to PRIVATE storage; only this buyer, this store (and the super-admin) see them
-const uploadReceipt = async (file: File): Promise<string> => {
+// Receipts, refund QRs and refund proofs go to PRIVATE storage; only this buyer, this store
+// (and the super-admin) see them
+const uploadPrivate = async (file: File, purpose: "payment-receipt" | "refund-qr" | "refund-proof"): Promise<string> => {
   const body = new FormData();
   body.append("file", file);
-  body.append("_payload", JSON.stringify({ purpose: "payment-receipt" }));
+  body.append("_payload", JSON.stringify({ purpose }));
   const res = await fetch("/api/private-media", { method: "POST", body, credentials: "include" });
   const json = (await res.json().catch(() => null)) as { doc?: { id: string }; errors?: { message?: string }[] } | null;
   if (!res.ok || !json?.doc?.id) throw new Error(json?.errors?.[0]?.message ?? "Upload failed. Please try again.");
@@ -66,6 +67,7 @@ export const OrderCard = ({ storeOrderId, compact }: { storeOrderId: string; com
   const [reference, setReference] = useState("");
   const [busy, setBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const refundFileRef = useRef<HTMLInputElement>(null);
 
   const act = useMutation(trpc.orders.act.mutationOptions({
     onSuccess: async () => {
@@ -75,6 +77,13 @@ export const OrderCard = ({ storeOrderId, compact }: { storeOrderId: string; com
         queryClient.invalidateQueries(trpc.orders.pathFilter()),
         queryClient.invalidateQueries(trpc.chat.thread.queryFilter()),
       ]);
+    },
+    onError: (error) => toast.error(error.data?.code === "INTERNAL_SERVER_ERROR" ? "Something went wrong. Please try again." : error.message),
+  }));
+
+  const refundMutation = useMutation(trpc.orders.refund.mutationOptions({
+    onSuccess: async () => {
+      await Promise.all([queryClient.invalidateQueries(trpc.orders.pathFilter()), queryClient.invalidateQueries(trpc.chat.thread.queryFilter())]);
     },
     onError: (error) => toast.error(error.data?.code === "INTERNAL_SERVER_ERROR" ? "Something went wrong. Please try again." : error.message),
   }));
@@ -93,7 +102,7 @@ export const OrderCard = ({ storeOrderId, compact }: { storeOrderId: string; com
     if (file.size > MAX_PHOTO_BYTES) return toast.error("That picture is over 5 MB.");
     setBusy(true);
     try {
-      run("submit_payment", { receiptId: await uploadReceipt(file), referenceNo: reference.trim() || undefined });
+      run("submit_payment", { receiptId: await uploadPrivate(file, "payment-receipt"), referenceNo: reference.trim() || undefined });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Upload failed.");
     } finally {
@@ -102,8 +111,27 @@ export const OrderCard = ({ storeOrderId, compact }: { storeOrderId: string; com
     }
   };
 
+  const canRefund = (action: RefundAction) => order.refundActions.includes(action);
+  // Buyer: their own GCash QR. Store: a screenshot of the refund it sent.
+  const onRefundFile = async (file: File | undefined) => {
+    if (!file) return;
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) return toast.error("Please use a JPG, PNG, or WebP picture.");
+    if (file.size > MAX_PHOTO_BYTES) return toast.error("That picture is over 5 MB.");
+    const action: RefundAction = canRefund("buyer_send_qr") ? "buyer_send_qr" : "store_refund_sent";
+    setBusy(true);
+    try {
+      const fileId = await uploadPrivate(file, action === "buyer_send_qr" ? "refund-qr" : "refund-proof");
+      refundMutation.mutate({ storeOrderId, action, fileId });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Upload failed.");
+    } finally {
+      setBusy(false);
+      if (refundFileRef.current) refundFileRef.current.value = "";
+    }
+  };
+
   return (
-    <div className={cn("rounded-md border-2 bg-white p-3 flex flex-col gap-2 text-sm", STATUS_TONE[order.status])}>
+    <div className={cn("rounded-md border-2 bg-white p-3 flex flex-col gap-2 text-sm", order.refund && ["awaiting_store_refund", "escalated"].includes(order.refund.status) ? "bg-orange-50 border-orange-500" : STATUS_TONE[order.status])}>
       <div className="flex flex-wrap items-center gap-2 justify-between">
         <span className="font-semibold text-base">{order.code}</span>
         <ModeBadge mode={order.order.mode} />
@@ -137,6 +165,46 @@ export const OrderCard = ({ storeOrderId, compact }: { storeOrderId: string; com
           Cancelled by {order.cancel.by}{order.cancel.reason ? `: ${order.cancel.reason}` : ""}
         </p>
       )}
+      {order.order.status === "self_pickup" && order.status === "paid" && (
+        <p className="font-medium text-amber-800">
+          🏪 Self-pickup: {isStoreView ? "the buyer will pick this up at your store." : `pick up your items at ${order.store.name}${order.store.closingTime ? ` before ${order.store.closingTime}` : ""}.`}
+        </p>
+      )}
+
+      {/* Refund (CLAUDE.md §11.9) */}
+      {order.refund && (
+        <div className="flex flex-col gap-2 border-t pt-2">
+          <p className="font-semibold">{order.refund.label} · {formatCurrency(order.refund.amount)}</p>
+          {order.refund.buyerQrUrl && (
+            <a href={order.refund.buyerQrUrl} target="_blank" rel="noopener" className="underline w-fit">
+              {isStoreView ? "Open the buyer's GCash QR" : "Your GCash QR"}
+            </a>
+          )}
+          {order.refund.proofUrl && (
+            <a href={order.refund.proofUrl} target="_blank" rel="noopener" className="underline w-fit">View the refund proof</a>
+          )}
+          <input ref={refundFileRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(event) => onRefundFile(event.target.files?.[0])} />
+          {canRefund("buyer_send_qr") && (
+            <Button className="bg-black text-white" disabled={busy || refundMutation.isPending} onClick={() => refundFileRef.current?.click()}>
+              Send my GCash QR
+            </Button>
+          )}
+          {canRefund("store_refund_sent") && (
+            <>
+              <p>Send {formatCurrency(order.refund.amount)} to the buyer&apos;s GCash, then upload a screenshot:</p>
+              <Button className="bg-orange-600 text-white" disabled={busy || refundMutation.isPending} onClick={() => refundFileRef.current?.click()}>
+                Refund sent (upload proof)
+              </Button>
+            </>
+          )}
+          {canRefund("buyer_refund_received") && (
+            <Button className="bg-green-700 text-white" disabled={refundMutation.isPending} onClick={() => refundMutation.mutate({ storeOrderId, action: "buyer_refund_received" })}>
+              Refund received
+            </Button>
+          )}
+        </div>
+      )}
+
       {order.paymentNotReceived && order.status === "payment_submitted" && (
         <p className="text-red-700 font-medium">⚠️ The store says this payment hasn&apos;t arrived. Please talk in the chat.</p>
       )}
@@ -184,6 +252,11 @@ export const OrderCard = ({ storeOrderId, compact }: { storeOrderId: string; com
             Not received
           </Button>
         )}
+        {can("buyer_picked_up") && (
+          <Button className="bg-black text-white" disabled={act.isPending} onClick={() => run("buyer_picked_up")}>
+            Buyer picked up
+          </Button>
+        )}
         {(can("store_cancel") || can("buyer_cancel")) && (
           <Button variant="outline" disabled={act.isPending} onClick={() => setCancelOpen(true)}>
             Cancel {isStoreView ? "order" : "this store"}
@@ -197,6 +270,7 @@ export const OrderCard = ({ storeOrderId, compact }: { storeOrderId: string; com
             <DialogTitle>Cancel {order.code}?</DialogTitle>
             <DialogDescription>
               {can("store_cancel") ? "Tell the buyer why (e.g., out of stock: Bear Brand)." : "The store will be told. You can still order again later."}
+              {order.cancelNeedsRefund && (isStoreView ? " The buyer already paid: you'll need to refund them by GCash." : " You already paid, so the store will refund you by GCash (you'll send your GCash QR in the chat).")}
             </DialogDescription>
           </DialogHeader>
           <Textarea value={reason} onChange={(event) => setReason(event.target.value)} maxLength={300} rows={3} placeholder={can("store_cancel") ? "Reason (required)" : "Reason (optional)"} />
