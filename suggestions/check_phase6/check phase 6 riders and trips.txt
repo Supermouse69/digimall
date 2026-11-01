@@ -1,0 +1,93 @@
+Title: CHECK PHASE 6: rider portal, booking, trips, phone notifications
+Date: 2026-11-01
+Status: not checked yet by the developer
+Branch: phase-6-riders (built on top of phase-3-stores-products)
+
+BEFORE YOU START
+- Stop and restart `bun run dev` (new package web-push, new .env lines NEXT_PUBLIC_VAPID_PUBLIC_KEY
+  + VAPID_PRIVATE_KEY, new collection Push subscriptions).
+- You need: a BUYER, a SELLER (store with an approved GCash QR + a map pin + a barangay), and
+  1–2 RIDER accounts (invite them as super-admin, set their password from the invite link).
+- Riders: super-admin -> Riders -> set status "approved".
+- Best on 2 phones (rider + buyer). Location + notifications need a real phone or a laptop
+  that allows location. NOTE: phone notifications and location only work on https or on
+  localhost. Opening your PC's dev server from a phone by IP (http://192.168...) WON'T allow
+  location/notifications. Test those on the laptop, or after deploying (https).
+- Settings -> "Orders + timers": rider has 120 seconds to accept; riders are listed if their
+  location is at most 5 minutes old. (Set the seconds to 30 to test timeouts faster.)
+- If something fails: write the step number, what you clicked and the exact message.
+
+==================================================================
+PART 1: RIDER PORTAL (/rider, rider account)
+==================================================================
+ [ ] 1.1 Not approved yet: only "documents" (as before)
+ [ ] 1.2 Approved: "Add your mobile number" box -> save 09XXXXXXXXX
+ [ ] 1.3 "Go Active" -> the browser asks for location -> allow -> green "You're Active"
+ [ ] 1.4 Deny location -> a message asks you to allow it
+ [ ] 1.5 "Turn on notifications" -> allow -> "Notifications are on for this phone"
+         (iPhone: only after Share -> "Add to Home Screen", then open from there)
+ [ ] 1.6 Android Chrome: the menu offers "Install app" / "Add to Home screen" -> opens /rider
+ [ ] 1.7 "My documents" is folded below
+ [ ] 1.8 "Go off" -> your location is deleted (super-admin: Riders -> the rider -> Last location empty)
+
+==================================================================
+PART 2: BUYER BOOKS A RIDER
+==================================================================
+ [ ] 2.1 Place an order, store confirms, pay, store taps "Payment received" (Phase 5)
+ [ ] 2.2 The order page shows "Every store is paid. Book a rider now" + the list of Active
+         riders: first name, photo, "~0.8 km from the store (approx.)". No phone, no map yet
+ [ ] 2.3 A rider who is off, not approved, or whose location is older than 5 minutes is NOT listed
+ [ ] 2.4 Tap "Request" on a rider -> "Waiting for <name> to accept…" with a countdown
+ [ ] 2.5 Rider's phone: notification "🔴 URGENT ride request" / "🟢 New ride request" (if on)
+ [ ] 2.6 Rider portal shows the request card: code, mode, stores + barangays, the buyer's
+         BARANGAY only (no street, no pin, no phone yet), the estimated fee, countdown
+ [ ] 2.7 Rider taps "Decline" -> buyer is back to the rider list ("The last rider didn't accept")
+         and that rider isn't listed again for this order
+ [ ] 2.8 Request again and let the timer run out -> back to the list by itself
+ [ ] 2.9 "Auto-pick nearest rider" -> asks the nearest. If they decline/time out, it asks the next one
+ [ ] 2.10 "Cancel request" -> back to the list
+
+==================================================================
+PART 3: THE TRIP
+==================================================================
+ [ ] 3.1 Rider taps "Accept" -> buyer sees "Rider <name> · Going to the store", a Call rider
+         button, Chat with rider, and a map with the rider + your pin (updates every ~25 s)
+ [ ] 3.2 Rider portal: trip view with the map (stores + delivery pin), each stop with
+         "Call store" and "Picked up", the buyer's name, address, note, landmark photo,
+         "Call buyer" and "Chat with buyer"
+ [ ] 3.3 Trip chat works both ways (buyer: chat bubble -> "Rider <name> · DM-XXXX")
+ [ ] 3.4 The STORE can't see the trip chat
+ [ ] 3.5 Rider can't "Go off" during a trip
+ [ ] 3.6 Rider taps "Picked up" -> buyer sees "On the way to you" and the chat says
+         "Picked up ... Your order is on the way!"
+ [ ] 3.7 After all stops are picked up: "Cash delivery fee collected" (pre-filled with the
+         estimate, you can change it) -> "Delivered"
+ [ ] 3.8 Buyer: order "Delivered"; the rider's phone number, map and call button are GONE;
+         "Delivery fee paid to the rider: ₱..."
+ [ ] 3.9 The trip chat is read-only ("This trip has ended")
+ [ ] 3.10 Rider: the trip disappears (no more address/landmark/phone); "Trip history" shows
+          it with the fee and a total
+ [ ] 3.11 One trip at a time: while a rider has a trip, they aren't listed for other orders
+
+==================================================================
+PART 4: NOTIFICATIONS
+==================================================================
+ [ ] 4.1 Buyer: "Turn on notifications" on the order page -> store confirms -> notification
+ [ ] 4.2 Seller: "Turn on notifications" in the 📦 Orders board -> a buyer places an order or
+         chats -> notification. Tapping it opens the right page
+ [ ] 4.3 Rider accepts / picks up / delivers -> the buyer gets a notification each time
+ [ ] 4.4 "Turn off notifications" stops them for that phone
+
+==================================================================
+KNOWN / NOT INCLUDED (on purpose)
+==================================================================
+- Cancelling after a rider accepted (and rider compensation), paid-order refunds and the
+  8 PM "self pickup" rule come in Phase 7 (they need your answers to the 2 open questions).
+- The rider's location is only sent while the rider portal is OPEN and Active (a web page
+  can't track in the background). Background GPS comes with the native rider app later.
+- No offline mode: orders, chats and trips always need internet.
+- Before going live: generate a NEW VAPID key pair for the live site (see .env.example).
+- Not tested by Claude in a real browser/phone: the rider portal screens, location,
+  notifications and the install prompt. The trip RULES were tested on the database
+  (43 checks: who can go Active, rider list, decline/timeout/auto-pick, accept, pickup,
+  delivered, read-only chat, earnings, and what each person sees before/during/after).
