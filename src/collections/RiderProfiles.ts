@@ -118,7 +118,20 @@ export const RiderProfiles: CollectionConfig = {
       type: "checkbox",
       defaultValue: false,
       access: { create: superAdminOnlyField, update: superAdminOnlyField },
-      admin: { position: "sidebar" },
+      admin: { position: "sidebar", description: "Riders switch this in the rider portal (approved riders only)." },
+    },
+    {
+      // Only the LATEST point, and only while Active (CLAUDE.md §9, §11.13). Cleared when the
+      // rider goes off Active. No location history is kept.
+      name: "lastLocation",
+      type: "group",
+      access: { create: () => false, update: () => false },
+      admin: { readOnly: true, position: "sidebar" },
+      fields: [
+        { name: "lat", type: "number" },
+        { name: "lng", type: "number" },
+        { name: "at", type: "date" },
+      ],
     },
   ],
 };

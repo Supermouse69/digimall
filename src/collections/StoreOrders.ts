@@ -57,6 +57,8 @@ export const StoreOrders: CollectionConfig = {
       ],
     },
     { name: "confirmedAt", label: "Store confirmed at", type: "date", access: locked },
+    { name: "pickedUpAt", label: "Picked up by the rider at", type: "date", access: locked },
+    { name: "deliveredAt", type: "date", access: locked },
     {
       name: "cancel",
       type: "group",

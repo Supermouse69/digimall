@@ -17,6 +17,8 @@ export const ORDER_DEFAULTS = {
   paymentMinutes: 10,
   paymentCheckReminderMinutes: 30,
   fareExtraStopFee: 0,
+  riderRequestSeconds: 120,
+  riderLocationFreshMinutes: 5,
 };
 
 export const Settings: GlobalConfig = {
@@ -153,6 +155,24 @@ export const Settings: GlobalConfig = {
           max: 1000,
           defaultValue: ORDER_DEFAULTS.fareExtraStopFee,
           admin: { description: "Added to the base fare (Fares) for every store after the first. Paid in cash to the rider." },
+        },
+        {
+          name: "riderRequestSeconds",
+          label: "Seconds a rider has to accept a request",
+          type: "number",
+          required: true,
+          min: 30,
+          max: 600,
+          defaultValue: ORDER_DEFAULTS.riderRequestSeconds,
+        },
+        {
+          name: "riderLocationFreshMinutes",
+          label: "Show riders whose location is at most this many minutes old",
+          type: "number",
+          required: true,
+          min: 1,
+          max: 30,
+          defaultValue: ORDER_DEFAULTS.riderLocationFreshMinutes,
         },
       ],
     },

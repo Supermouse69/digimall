@@ -50,6 +50,32 @@ export const Orders: CollectionConfig = {
         { name: "extraStopFee", type: "number", access: locked },
       ],
     },
+    // ---- Rider booking + trip (Phase 6, CLAUDE.md §11.7) ----
+    { name: "rider", label: "Assigned rider", type: "relationship", relationTo: "users", index: true, access: locked },
+    {
+      // The one pending request for this order (a rider has a few minutes to accept)
+      name: "riderRequest",
+      type: "group",
+      fields: [
+        { name: "rider", type: "relationship", relationTo: "users", index: true, access: locked },
+        { name: "requestedAt", type: "date", access: locked },
+        { name: "expiresAt", type: "date", access: locked },
+        { name: "auto", label: "Auto-pick nearest", type: "checkbox", access: locked },
+        // Riders who declined or didn't answer this order (auto-pick skips them)
+        { name: "tried", type: "relationship", relationTo: "users", hasMany: true, access: locked },
+      ],
+    },
+    {
+      name: "trip",
+      type: "group",
+      fields: [
+        { name: "acceptedAt", type: "date", access: locked },
+        { name: "firstPickupAt", type: "date", access: locked },
+        { name: "deliveredAt", type: "date", access: locked },
+        { name: "feeCollected", label: "Cash fee collected (₱, confirmed by the rider)", type: "number", access: locked },
+        { name: "conversation", label: "Trip chat", type: "relationship", relationTo: "conversations", access: locked },
+      ],
+    },
     {
       name: "cancel",
       type: "group",

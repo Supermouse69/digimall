@@ -21,6 +21,7 @@ import { Messages } from "./collections/Messages";
 import { Fares } from "./collections/Fares";
 import { Orders } from "./collections/Orders";
 import { StoreOrders } from "./collections/StoreOrders";
+import { PushSubscriptions } from "./collections/PushSubscriptions";
 import { Invites } from "./collections/Invites";
 import { PrivateMedia } from "./collections/PrivateMedia";
 import { RiderProfiles } from "./collections/RiderProfiles";
@@ -67,6 +68,7 @@ export default buildConfig({
     Orders,
     StoreOrders,
     Fares,
+    PushSubscriptions,
     AuditLogs,
   ],
   // Max 5 MB per uploaded file (CLAUDE.md §10.8)

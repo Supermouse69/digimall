@@ -23,6 +23,9 @@ export const RATE_LIMITS = {
   chatSend: { name: "chat-send", max: 30, windowMinutes: 1 },
   checkout: { name: "checkout", max: 5, windowMinutes: 10 },
   orderAction: { name: "order-action", max: 30, windowMinutes: 1 },
+  riderLocation: { name: "rider-location", max: 12, windowMinutes: 1 },
+  riderRequest: { name: "rider-request", max: 10, windowMinutes: 10 },
+  pushSubscribe: { name: "push-subscribe", max: 10, windowMinutes: 60 },
 } satisfies Record<string, RateLimitRule>;
 
 const COLLECTION = "rate_limits";

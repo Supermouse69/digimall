@@ -102,3 +102,26 @@ export const ORDER_LABELS: Record<OrderStatus, string> = {
 export const CODE_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
 export const STORE_SUFFIXES = ["A", "B", "C", "D", "E", "F", "G", "H", "J", "K"] as const;
 export const isOrderCode = (code: string) => /^DM-[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{4}$/.test(code);
+
+// ---------- Rider booking + trip (Phase 6, CLAUDE.md §11.7) ----------
+
+export const ACTIVE_TRIP_STATUSES: readonly OrderStatus[] = ["rider_assigned", "on_the_way"];
+
+export const canRequestRider = (status: OrderStatus) => status === "ready_to_book";
+
+// The rider's few minutes to accept are up (checked on every read and action, like the other timers)
+export const requestExpired = (status: OrderStatus, expiresAt: string | null | undefined, now: number) =>
+  status === "rider_requested" && Boolean(expiresAt) && Date.parse(expiresAt!) <= now;
+
+// The rider can pick up a store's items once that store order is paid
+export const canPickUp = (orderStatus: OrderStatus, storeStatus: StoreOrderStatus) =>
+  ACTIVE_TRIP_STATUSES.includes(orderStatus) && storeStatus === "paid";
+
+// "Delivered" only after every store that's still in the order was picked up
+export const canDeliver = (orderStatus: OrderStatus, storeStatuses: StoreOrderStatus[]) => {
+  const open = storeStatuses.filter((status) => !isClosed(status));
+  return orderStatus === "on_the_way" && open.length > 0 && open.every((status) => status === "picked_up");
+};
+
+// Approximate distance for the rider list: "~0.8 km" (straight line, CLAUDE.md §11.13)
+export const approxKm = (km: number) => `~${km < 10 ? (Math.round(km * 10) / 10).toFixed(1) : Math.round(km)} km`;

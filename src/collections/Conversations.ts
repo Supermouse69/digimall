@@ -43,11 +43,16 @@ export const Conversations: CollectionConfig = {
     { name: "type", type: "select", required: true, defaultValue: "store", options: ["store", "trip"], access: locked },
     { name: "buyer", type: "relationship", relationTo: "users", required: true, index: true, access: locked },
     { name: "tenant", label: "Store", type: "relationship", relationTo: "tenants", index: true, access: locked },
+    // Trip chats (Phase 6): the assigned rider + the order. Read-only once the trip ends (closedAt).
+    { name: "rider", type: "relationship", relationTo: "users", index: true, access: locked },
+    { name: "order", type: "relationship", relationTo: "orders", access: locked },
+    { name: "closedAt", label: "Trip ended at (chat is read-only)", type: "date", access: locked },
     { name: "lastMessageAt", type: "date", index: true, access: locked },
     { name: "lastMessagePreview", type: "text", maxLength: 120, access: locked },
-    { name: "lastSenderSide", type: "select", options: ["buyer", "store", "system"], access: locked },
+    { name: "lastSenderSide", type: "select", options: ["buyer", "store", "rider", "system"], access: locked },
     { name: "buyerLastReadAt", type: "date", access: locked, admin: { hidden: true } },
     { name: "storeLastReadAt", type: "date", access: locked, admin: { hidden: true } },
+    { name: "riderLastReadAt", type: "date", access: locked, admin: { hidden: true } },
     // Lazy expiry (CLAUDE.md §11.6): messages are hidden after this and deleted by the cleanup job
     { name: "deleteAfter", type: "date", index: true, access: locked },
     {

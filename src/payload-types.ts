@@ -82,6 +82,7 @@ export interface Config {
     orders: Order;
     'store-orders': StoreOrder;
     fares: Fare;
+    'push-subscriptions': PushSubscription;
     'audit-logs': AuditLog;
     'payload-kv': PayloadKv;
     'payload-locked-documents': PayloadLockedDocument;
@@ -109,6 +110,7 @@ export interface Config {
     orders: OrdersSelect<false> | OrdersSelect<true>;
     'store-orders': StoreOrdersSelect<false> | StoreOrdersSelect<true>;
     fares: FaresSelect<false> | FaresSelect<true>;
+    'push-subscriptions': PushSubscriptionsSelect<false> | PushSubscriptionsSelect<true>;
     'audit-logs': AuditLogsSelect<false> | AuditLogsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
@@ -351,16 +353,79 @@ export interface Conversation {
   type: 'store' | 'trip';
   buyer: string | User;
   tenant?: (string | null) | Tenant;
+  rider?: (string | null) | User;
+  order?: (string | null) | Order;
+  closedAt?: string | null;
   lastMessageAt?: string | null;
   lastMessagePreview?: string | null;
-  lastSenderSide?: ('buyer' | 'store' | 'system') | null;
+  lastSenderSide?: ('buyer' | 'store' | 'rider' | 'system') | null;
   buyerLastReadAt?: string | null;
   storeLastReadAt?: string | null;
+  riderLastReadAt?: string | null;
   deleteAfter?: string | null;
   /**
    * Kept (not auto-deleted) while ticked. Untick after the report is resolved.
    */
   underReport?: boolean | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "orders".
+ */
+export interface Order {
+  id: string;
+  code: string;
+  buyer: string | User;
+  status:
+    | 'in_progress'
+    | 'ready_to_book'
+    | 'rider_requested'
+    | 'rider_assigned'
+    | 'on_the_way'
+    | 'delivered'
+    | 'cancelled'
+    | 'self_pickup';
+  mode: 'casual' | 'fast';
+  delivery?: {
+    buyerName?: string | null;
+    barangay?: string | null;
+    addressDetails?: string | null;
+    /**
+     * @minItems 2
+     * @maxItems 2
+     */
+    location?: [number, number] | null;
+    landmarkPhoto?: (string | null) | PrivateMedia;
+  };
+  riderNotes?: string | null;
+  fare?: {
+    estimate?: number | null;
+    base?: number | null;
+    extraStops?: number | null;
+    extraStopFee?: number | null;
+  };
+  rider?: (string | null) | User;
+  riderRequest?: {
+    rider?: (string | null) | User;
+    requestedAt?: string | null;
+    expiresAt?: string | null;
+    auto?: boolean | null;
+    tried?: (string | User)[] | null;
+  };
+  trip?: {
+    acceptedAt?: string | null;
+    firstPickupAt?: string | null;
+    deliveredAt?: string | null;
+    feeCollected?: number | null;
+    conversation?: (string | null) | Conversation;
+  };
+  cancel?: {
+    by?: ('buyer' | 'store' | 'system') | null;
+    reason?: string | null;
+    at?: string | null;
+  };
   updatedAt: string;
   createdAt: string;
 }
@@ -406,7 +471,15 @@ export interface RiderProfile {
   licenseDocument?: (string | null) | PrivateMedia;
   franchiseDocument?: (string | null) | PrivateMedia;
   todaName?: string | null;
+  /**
+   * Riders switch this in the rider portal (approved riders only).
+   */
   isActive?: boolean | null;
+  lastLocation?: {
+    lat?: number | null;
+    lng?: number | null;
+    at?: string | null;
+  };
   updatedAt: string;
   createdAt: string;
 }
@@ -517,7 +590,7 @@ export interface Report {
 export interface Message {
   id: string;
   conversation: string | Conversation;
-  side: 'buyer' | 'store' | 'system';
+  side: 'buyer' | 'store' | 'rider' | 'system';
   sender?: (string | null) | User;
   kind: 'text' | 'image' | 'product_ref' | 'system' | 'order_card' | 'payment_receipt';
   text?: string | null;
@@ -574,50 +647,8 @@ export interface StoreOrder {
     notReceivedAt?: string | null;
   };
   confirmedAt?: string | null;
-  cancel?: {
-    by?: ('buyer' | 'store' | 'system') | null;
-    reason?: string | null;
-    at?: string | null;
-  };
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "orders".
- */
-export interface Order {
-  id: string;
-  code: string;
-  buyer: string | User;
-  status:
-    | 'in_progress'
-    | 'ready_to_book'
-    | 'rider_requested'
-    | 'rider_assigned'
-    | 'on_the_way'
-    | 'delivered'
-    | 'cancelled'
-    | 'self_pickup';
-  mode: 'casual' | 'fast';
-  delivery?: {
-    buyerName?: string | null;
-    barangay?: string | null;
-    addressDetails?: string | null;
-    /**
-     * @minItems 2
-     * @maxItems 2
-     */
-    location?: [number, number] | null;
-    landmarkPhoto?: (string | null) | PrivateMedia;
-  };
-  riderNotes?: string | null;
-  fare?: {
-    estimate?: number | null;
-    base?: number | null;
-    extraStops?: number | null;
-    extraStopFee?: number | null;
-  };
+  pickedUpAt?: string | null;
+  deliveredAt?: string | null;
   cancel?: {
     by?: ('buyer' | 'store' | 'system') | null;
     reason?: string | null;
@@ -642,6 +673,19 @@ export interface Fare {
    * Filled in automatically.
    */
   routeKey?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "push-subscriptions".
+ */
+export interface PushSubscription {
+  id: string;
+  user: string | User;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
   updatedAt: string;
   createdAt: string;
 }
@@ -765,6 +809,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'fares';
         value: string | Fare;
+      } | null)
+    | ({
+        relationTo: 'push-subscriptions';
+        value: string | PushSubscription;
       } | null)
     | ({
         relationTo: 'audit-logs';
@@ -906,6 +954,13 @@ export interface RiderProfilesSelect<T extends boolean = true> {
   franchiseDocument?: T;
   todaName?: T;
   isActive?: T;
+  lastLocation?:
+    | T
+    | {
+        lat?: T;
+        lng?: T;
+        at?: T;
+      };
   updatedAt?: T;
   createdAt?: T;
 }
@@ -1044,11 +1099,15 @@ export interface ConversationsSelect<T extends boolean = true> {
   type?: T;
   buyer?: T;
   tenant?: T;
+  rider?: T;
+  order?: T;
+  closedAt?: T;
   lastMessageAt?: T;
   lastMessagePreview?: T;
   lastSenderSide?: T;
   buyerLastReadAt?: T;
   storeLastReadAt?: T;
+  riderLastReadAt?: T;
   deleteAfter?: T;
   underReport?: T;
   updatedAt?: T;
@@ -1104,6 +1163,25 @@ export interface OrdersSelect<T extends boolean = true> {
         extraStops?: T;
         extraStopFee?: T;
       };
+  rider?: T;
+  riderRequest?:
+    | T
+    | {
+        rider?: T;
+        requestedAt?: T;
+        expiresAt?: T;
+        auto?: T;
+        tried?: T;
+      };
+  trip?:
+    | T
+    | {
+        acceptedAt?: T;
+        firstPickupAt?: T;
+        deliveredAt?: T;
+        feeCollected?: T;
+        conversation?: T;
+      };
   cancel?:
     | T
     | {
@@ -1149,6 +1227,8 @@ export interface StoreOrdersSelect<T extends boolean = true> {
         notReceivedAt?: T;
       };
   confirmedAt?: T;
+  pickedUpAt?: T;
+  deliveredAt?: T;
   cancel?:
     | T
     | {
@@ -1169,6 +1249,18 @@ export interface FaresSelect<T extends boolean = true> {
   casualFare?: T;
   fastFare?: T;
   routeKey?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "push-subscriptions_select".
+ */
+export interface PushSubscriptionsSelect<T extends boolean = true> {
+  user?: T;
+  endpoint?: T;
+  p256dh?: T;
+  auth?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -1281,6 +1373,8 @@ export interface Setting {
    * Added to the base fare (Fares) for every store after the first. Paid in cash to the rider.
    */
   fareExtraStopFee: number;
+  riderRequestSeconds: number;
+  riderLocationFreshMinutes: number;
   /**
    * Messages are deleted this many days after the last message (CLAUDE.md §11.3). Chats under a report are kept until you resolve it.
    */
@@ -1309,6 +1403,8 @@ export interface SettingsSelect<T extends boolean = true> {
   paymentMinutes?: T;
   paymentCheckReminderMinutes?: T;
   fareExtraStopFee?: T;
+  riderRequestSeconds?: T;
+  riderLocationFreshMinutes?: T;
   chatRetentionDays?: T;
   updatedAt?: T;
   createdAt?: T;

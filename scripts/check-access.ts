@@ -43,7 +43,7 @@ const main = async () => {
   };
   const col = (slug: string) => config.collections.find((c) => c.slug === slug)!;
   // A fake payload: "find" returns one chat for anyone who asks (used by the chat-photo rule)
-  const fakePayload = { find: async () => ({ docs: [{ id: "c-1" }] }) };
+  const fakePayload = { find: async () => ({ docs: [{ id: "c-1" }] }), count: async () => ({ totalDocs: 0 }) };
   const req = (user: U) => ({ user, payload: fakePayload, context: {} }) as never;
   const acc = async (slug: string, op: string, user: U, id?: string) =>
     (col(slug).access as Record<string, (a: unknown) => unknown>)[op]!({ req: req(user), id });
@@ -240,6 +240,12 @@ const main = async () => {
     check(`admin: delete ${slug} (kept for legal records)`, await acc(slug, "delete", admin), false);
   }
   check("admin: enter fares", await acc("fares", "create", admin), true);
+  for (const [who, user] of [["anonymous", anon], ["buyer", attacker], ["seller", seller], ["rider", rider]] as const) {
+    check(`${who}: read push subscriptions via API`, await acc("push-subscriptions", "read", user), false);
+    check(`${who}: create push subscriptions via API`, await acc("push-subscriptions", "create", user), false);
+  }
+  check("rider: change own Active switch via API (only through the portal's checks)", await fieldAcc("rider-profiles", "isActive", "update", rider), false);
+  check("rider: write own location via API", await fieldAcc("rider-profiles", "lastLocation", "update", rider), false);
 
   console.log("--- Audit log (append-only) ---");
   check("seller: read audit log", await acc("audit-logs", "read", seller), false);

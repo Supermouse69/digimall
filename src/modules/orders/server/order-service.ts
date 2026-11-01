@@ -346,8 +346,12 @@ const applyTimers = async (ctx: ChatCtx, storeOrder: StoreOrder): Promise<StoreO
   return updated;
 };
 
-const isMember = (actor: ChatActor, storeOrder: StoreOrder) =>
-  actor.side === "buyer" ? relationId(storeOrder.buyer) === actor.userId : actor.tenantIds.includes(relationId(storeOrder.tenant) ?? "");
+// Buyer: own orders. Store: its own store orders. Riders see trips through trip-service instead.
+const isMember = (actor: ChatActor, storeOrder: StoreOrder) => {
+  if (actor.side === "buyer") return relationId(storeOrder.buyer) === actor.userId;
+  if (actor.side === "store") return actor.tenantIds.includes(relationId(storeOrder.tenant) ?? "");
+  return false;
+};
 
 export const loadStoreOrderFor = async (ctx: ChatCtx, actor: ChatActor, id: string) => {
   const storeOrder = (await ctx.payload.findByID({ collection: "store-orders", id, depth: 0, overrideAccess: true, req: ctx.req }).catch(() => null)) as StoreOrder | null;
@@ -524,12 +528,13 @@ export type StoreOrderView = {
   // The parent order (for the store: what it may see)
   order: { code: string; mode: DeliveryMode; status: OrderStatus; buyerName: string; barangay: string | null };
   actions: StoreOrderAction[];
-  viewer: "buyer" | "store";
+  viewer: ChatActor["side"];
 };
 
-const ACTIONS_FOR: Record<"buyer" | "store", StoreOrderAction[]> = {
+const ACTIONS_FOR: Record<ChatActor["side"], StoreOrderAction[]> = {
   buyer: ["buyer_cancel", "submit_payment"],
   store: ["store_confirm", "store_cancel", "payment_received", "payment_not_received"],
+  rider: [],
 };
 
 const toView = async (ctx: ChatCtx, actor: ChatActor, raw: StoreOrder, settings: MarketplaceSettings): Promise<StoreOrderView> => {

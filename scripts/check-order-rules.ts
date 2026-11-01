@@ -2,6 +2,11 @@
 // The order state machine (CLAUDE.md §11.5): which step can happen when, the timers, and when the
 // parent order becomes "ready to book". No database.
 import {
+  approxKm,
+  canDeliver,
+  canPickUp,
+  canRequestRider,
+  requestExpired,
   canDo,
   expiredStatus,
   isOrderCode,
@@ -51,6 +56,19 @@ check("one paid, one expired -> ready to book", o(["paid", "expired"]), "ready_t
 check("receipt sent but not checked -> NOT ready (must be paid)", o(["payment_submitted"]), "in_progress");
 check("everything cancelled/expired -> cancelled", o(["cancelled", "expired"]), "cancelled");
 check("rider steps are never recalculated here", orderStatusFrom("on_the_way", ["cancelled"]), "on_the_way");
+
+console.log("--- Rider booking + trip ---");
+check("book a rider only when ready to book", ["in_progress", "ready_to_book", "rider_requested", "on_the_way"].map((s) => canRequestRider(s as never)), [false, true, false, false]);
+check("request timer up -> expired", requestExpired("rider_requested", past, now), true);
+check("request timer not up", requestExpired("rider_requested", future, now), false);
+check("pick up a PAID store order during the trip", canPickUp("rider_assigned", "paid"), true);
+check("can't pick up before the rider accepted", canPickUp("rider_requested", "paid"), false);
+check("can't pick up an unpaid store order", canPickUp("on_the_way", "payment_submitted"), false);
+check("deliver once every store is picked up", canDeliver("on_the_way", ["picked_up", "cancelled"]), true);
+check("not before every store is picked up", canDeliver("on_the_way", ["picked_up", "paid"]), false);
+check("not before the first pickup", canDeliver("rider_assigned", ["paid"]), false);
+check("approx distance ~0.8 km", approxKm(0.83), "~0.8 km");
+check("approx distance ~12 km", approxKm(12.4), "~12 km");
 
 console.log("--- Order codes ---");
 check("DM-7K3Q is valid", isOrderCode("DM-7K3Q"), true);

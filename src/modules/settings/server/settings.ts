@@ -23,6 +23,8 @@ export type MarketplaceSettings = {
   paymentMinutes: number;
   paymentCheckReminderMinutes: number;
   fareExtraStopFee: number;
+  riderRequestSeconds: number;
+  riderLocationFreshMinutes: number;
 };
 
 // Reads the admin-editable settings, falling back to the defaults until the super-admin saves them.
@@ -46,6 +48,8 @@ export const getSettings = async (payload: Payload): Promise<MarketplaceSettings
     paymentMinutes: settings?.paymentMinutes ?? ORDER_DEFAULTS.paymentMinutes,
     paymentCheckReminderMinutes: settings?.paymentCheckReminderMinutes ?? ORDER_DEFAULTS.paymentCheckReminderMinutes,
     fareExtraStopFee: settings?.fareExtraStopFee ?? ORDER_DEFAULTS.fareExtraStopFee,
+    riderRequestSeconds: settings?.riderRequestSeconds ?? ORDER_DEFAULTS.riderRequestSeconds,
+    riderLocationFreshMinutes: settings?.riderLocationFreshMinutes ?? ORDER_DEFAULTS.riderLocationFreshMinutes,
   };
 };
 

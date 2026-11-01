@@ -3,7 +3,7 @@ import type { CollectionConfig } from "payload";
 import { isSuperAdmin } from "@/lib/access";
 
 export const MESSAGE_KINDS = ["text", "image", "product_ref", "system", "order_card", "payment_receipt"] as const;
-export const MESSAGE_SIDES = ["buyer", "store", "system"] as const;
+export const MESSAGE_SIDES = ["buyer", "store", "rider", "system"] as const;
 
 const locked = { update: () => false };
 

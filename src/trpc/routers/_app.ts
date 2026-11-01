@@ -10,6 +10,8 @@ import { adminEntryRouter } from '@/modules/admin-security/server/procedures';
 import { reportsRouter } from '@/modules/reports/server/procedures';
 import { chatRouter } from '@/modules/chat/server/procedures';
 import { ordersRouter } from '@/modules/orders/server/procedures';
+import { tripsRouter } from '@/modules/trips/server/procedures';
+import { notificationsRouter } from '@/modules/notifications/server/procedures';
  
 export const appRouter = createTRPCRouter({
   auth: authRouter,
@@ -23,6 +25,8 @@ export const appRouter = createTRPCRouter({
   reports: reportsRouter,
   chat: chatRouter,
   orders: ordersRouter,
+  trips: tripsRouter,
+  notifications: notificationsRouter,
 
 });
  

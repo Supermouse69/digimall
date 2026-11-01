@@ -51,11 +51,55 @@ const ownerOrSuperAdmin: Access = async ({ req, data }) => {
   // Chat photos + payment receipts: the other person in that chat may see them too (buyer <-> store).
   // Store GCash QR: a buyer sees it only while one of their orders from that store is waiting
   // for payment, and only once the super-admin approved it (CLAUDE.md §10 table, §11.1).
-  const [chatIds, qrIds] = await Promise.all([myConversationIds(req), payableQrIds(req)]);
+  // Trips (Phase 6): the assigned rider sees the buyer's landmark photo only during the trip;
+  // a buyer who is booking sees approved riders' photos (the rider list shows them).
+  const [chatIds, qrIds, landmarkIds, riderPhotoOwners] = await Promise.all([
+    myConversationIds(req),
+    payableQrIds(req),
+    activeTripLandmarkIds(req),
+    bookableRiderPhotoOwners(req),
+  ]);
   const allowed: Where[] = [{ owner: { equals: req.user.id } }];
   if (chatIds.length > 0) allowed.push({ conversation: { in: chatIds } });
   if (qrIds.length > 0) allowed.push({ id: { in: qrIds } });
+  if (landmarkIds.length > 0) allowed.push({ id: { in: landmarkIds } });
+  if (riderPhotoOwners.length > 0) allowed.push({ and: [{ purpose: { equals: "rider-photo" } }, { owner: { in: riderPhotoOwners } }] });
   return allowed.length > 1 ? { or: allowed } : allowed[0]!;
+};
+
+const ACTIVE_TRIP = ["rider_assigned", "on_the_way"];
+
+const activeTripLandmarkIds = async (req: Parameters<Access>[0]["req"]): Promise<string[]> => {
+  if (!req.user || (req.user as { role?: string }).role !== "rider") return [];
+  const { docs } = await req.payload.find({
+    collection: "orders",
+    where: { and: [{ rider: { equals: req.user.id } }, { status: { in: ACTIVE_TRIP } }] },
+    depth: 0,
+    limit: 5,
+    overrideAccess: true,
+    req,
+  });
+  return docs.map((order) => ownerId(order.delivery?.landmarkPhoto)).filter((id): id is string => Boolean(id));
+};
+
+const bookableRiderPhotoOwners = async (req: Parameters<Access>[0]["req"]): Promise<string[]> => {
+  if (!req.user || (req.user as { role?: string }).role !== "buyer") return [];
+  const { totalDocs } = await req.payload.count({
+    collection: "orders",
+    where: { and: [{ buyer: { equals: req.user.id } }, { status: { in: ["ready_to_book", "rider_requested", ...ACTIVE_TRIP] } }] },
+    overrideAccess: true,
+    req,
+  });
+  if (totalDocs === 0) return [];
+  const { docs } = await req.payload.find({
+    collection: "rider-profiles",
+    where: { status: { equals: "approved" } },
+    depth: 0,
+    limit: 200,
+    overrideAccess: true,
+    req,
+  });
+  return docs.map((profile) => ownerId(profile.user)).filter((id): id is string => Boolean(id));
 };
 
 const payableQrIds = async (req: Parameters<Access>[0]["req"]): Promise<string[]> => {
@@ -85,8 +129,13 @@ const payableQrIds = async (req: Parameters<Access>[0]["req"]): Promise<string[]
 const myConversationIds = async (req: Parameters<Access>[0]["req"]): Promise<string[]> => {
   if (!req.user) return [];
   const tenantIds = getUserTenantIds(req.user);
+  const role = (req.user as { role?: string }).role;
   const where: Where =
-    tenantIds.length > 0 ? { tenant: { in: tenantIds } } : { buyer: { equals: req.user.id } };
+    tenantIds.length > 0
+      ? { tenant: { in: tenantIds } }
+      : role === "rider"
+        ? { rider: { equals: req.user.id } }
+        : { buyer: { equals: req.user.id } };
   const { docs } = await req.payload.find({
     collection: "conversations",
     where,
