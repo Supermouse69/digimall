@@ -20,6 +20,8 @@ export const AUDIT_ACTIONS = [
   "refund.escalated",
   "order.auto_refunded",
   "order.self_pickup",
+  "privacy.exported",
+  "privacy.erased",
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 

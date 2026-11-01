@@ -6,10 +6,11 @@ import type { CollectionBeforeOperationHook, CollectionConfig } from "payload";
 // - Re-encoded with sharp to WebP: this drops EXIF/GPS data (we never set withMetadata)
 //   and anything hidden inside a fake "image".
 // - Big photos are shrunk to max 2000px to keep pages light on mobile data.
-// - Max 5 MB per file is set globally in payload.config.ts (upload.limits.fileSize).
+// - Max 4 MB per file, set globally in payload.config.ts (upload.limits.fileSize). CLAUDE.md says 5 MB,
+//   but Vercel refuses request bodies over ~4.5 MB, so 4 MB is the safe (stricter) limit.
 export const IMAGE_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
-export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+export const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
 
 export const imageUploadConfig = {
   mimeTypes: IMAGE_MIME_TYPES,

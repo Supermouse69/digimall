@@ -22,7 +22,7 @@ const THREAD_POLL_MS = 4000;
 const LIST_POLL_MS = 15000;
 const whenVisible = (ms: number) => () => (typeof document !== "undefined" && document.visibilityState === "visible" ? ms : false);
 
-const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
+const MAX_PHOTO_BYTES = 4 * 1024 * 1024;
 
 const timeLabel = (iso: string) =>
   new Date(iso).toLocaleString("en-PH", { timeZone: "Asia/Manila", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
@@ -217,7 +217,7 @@ const ThreadView = ({ initialConversationId, storeSlug, productId, onBack, onClo
   const onPhoto = async (file: File | undefined) => {
     if (!file) return;
     if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) return toast.error("Please use a JPG, PNG, or WebP photo.");
-    if (file.size > MAX_PHOTO_BYTES) return toast.error("That photo is over 5 MB.");
+    if (file.size > MAX_PHOTO_BYTES) return toast.error("That photo is over 4 MB.");
     setUploading(true);
     try {
       submit(await uploadChatPhoto(file));

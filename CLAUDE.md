@@ -132,6 +132,7 @@ src/
   modules/riders/     rider portal (documents until approved, then Active / requests / trip / history)
   components/admin/   custom Payload admin components (seller chat/orders bubbles, super-admin Admin desk on the dashboard)
   modules/admin-desk/ the super-admin to-do queues (counts + links to filtered admin lists)
+  modules/privacy/    privacy requests: export a user's data / erase an account (orders kept, anonymized)
   modules/tenants/    store pages: public store data (allowlist), badge, header, stores by barangay
   trpc/               tRPC setup (init, client, server caller, root router)
   payload.config.ts   Payload config (@payload-config alias)
@@ -140,6 +141,9 @@ src/
 scripts/              checks: `bun run test:access | test:redirects | test:signup | test:emails | test:2fa | test:bot-protection | test:order-rules`
                       DB checks (real dev DB, inside cancelled transactions): `test:invites | test:rider-docs | test:admin-login | test:stores | test:chat | test:orders | test:trips | test:refunds | test:admin-desk`
                       `orders:timers` runs the order/refund timers + reminders now (same as /api/cron/order-timers; writes to the DB)
+                      `test:privacy` checks the privacy export/erase tool (DB, cancelled transaction)
+                      `db:backup` / `prod:backup` export every collection to backups/ (read-only on the DB; files contain personal data)
+                      `prod:migrate` / `prod:create-admin -- email "Name"` PRODUCTION setup via .env.production (write to the prod DB)
                       `test:order-rules` checks the order state machine (no DB)
                       `chat:cleanup` deletes expired chats (same as the daily /api/cron/chat-cleanup; writes to the DB)
                       `admin:reset-2fa <email> [--new-password]` emergency 2FA reset (writes to the DB)
@@ -154,6 +158,7 @@ suggestions/check_phase5/ Phase 5 (cart + checkout) check list for the developer
 suggestions/check_phase6/ Phase 6 (riders + trips + push) check list for the developer
 suggestions/check_phase7/ Phase 7 (cancellations + refunds) check list for the developer
 suggestions/check_phase8/ Phase 8 (admin tools) check list for the developer
+suggestions/check_phase9/ deploy step by step + Phase 9 local checks
 media/                local public uploads, gitignored (moves to Vercel Blob later)
 private-media/        local PRIVATE uploads (IDs, licenses, landmark photos), gitignored (Vercel Private Blob later)
 backups/              local DB backups made before migrations, gitignored (contain personal data)
@@ -164,14 +169,18 @@ Path aliases: `@/*` → `src/*`, `@payload-config` → `src/payload.config.ts`. 
 
 - **Domain:** `digimall.online`, registered at **Cloudflare Registrar** (DNS stays on Cloudflare). Connect it to Vercel with the DNS records Vercel shows, Cloudflare proxy **OFF (gray cloud / DNS only)**. Avoid DNS changes during registry maintenance windows announced in the Cloudflare dashboard.
 - **Vercel plan:** Hobby (free) is for personal, **non-commercial** use only. A live marketplace likely counts as commercial → plan for **Pro** before going live with real stores (developer decides). Hobby cron jobs run **only once per day** → design timers accordingly (§11.6).
-- **Separate databases** for development and production (different `DATABASE_URI`), so testing never touches real data.
+- **Separate databases** for development and production (different `DATABASE_URI`), so testing never touches real data. **Decided 2026-11-01:** production = database `digimall-prod` on the same Atlas cluster; production values live in a local `.env.production` (gitignored) for `prod:migrate` / `prod:create-admin` / `prod:backup`, and in Vercel's environment variables.
+- **Uploads max 4 MB** (stricter than §10.8's 5 MB) because Vercel rejects request bodies over ~4.5 MB.
+- **Deploy guide:** `suggestions/check_phase9/deploy step by step.txt`.
 
 | Service | Purpose | Status | Env vars (proposed) |
 |---|---|---|---|
 | MongoDB Atlas | Database | Have | `DATABASE_URI` |
 | Payload | CMS + auth | In code | `PAYLOAD_SECRET` |
-| Vercel | Hosting, Blob storage, cron | Have / set up | `BLOB_READ_WRITE_TOKEN` (public store) + private store access (token or OIDC — check Vercel docs) |
-| Email (e.g., Resend + `@payloadcms/email-resend`) | Invites, verification, password reset | Need | `RESEND_API_KEY`, `EMAIL_FROM` |
+| Vercel | Hosting, Blob storage (PUBLIC images), cron | **Decided 2026-11-01: Hobby now, Pro before real stores** | `BLOB_READ_WRITE_TOKEN` (public store) |
+| Cloudflare R2 | PRIVATE files (IDs, receipts, QRs, landmark/chat photos), downloaded only through Payload's access check | **Decided 2026-11-01** (Payload's Vercel Blob adapter only supports public files as of 3.92.1) | `R2_BUCKET`, `R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` |
+| cron-job.org | Calls `/api/cron/order-timers` every 15 min (Hobby cron = once a day) | **Decided 2026-11-01** | uses `CRON_SECRET` |
+| Email: Resend + `@payloadcms/email-resend` | Invites, verification, password reset, order + approval emails | **In code 2026-11-01** (dev prints to the terminal) | `RESEND_API_KEY`, `EMAIL_FROM` |
 | Google Cloud OAuth | "Sign in with Google" for buyers | Need | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` |
 | Cloudflare Turnstile | Bot protection on auth forms | In code (dev uses Cloudflare test keys); **real keys needed before deploy** (free) | `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` |
 | Rate-limit counters | Rate limiting on serverless | **Decided 2026-10-31: MongoDB** (`rate_limits` collection, auto-expiring, hashed keys) in `modules/bot-protection`. Upstash Redis stays the upgrade path. | — (Upstash later: `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`) |

@@ -19,6 +19,7 @@ import {
 } from "@/lib/access";
 import { USER_ROLES } from "@/modules/auth/roles";
 import { CHAT_NAME_HINT, isValidChatName } from "@/lib/chat-name";
+import { eraseUser, exportUserData, PrivacyError } from "@/modules/privacy/server/privacy-service";
 
 // Only the super-admin can attach a user to a store.
 const defaultTenantArrayField = tenantsArrayField({
@@ -78,6 +79,44 @@ export const Users: CollectionConfig = {
           : resetPasswordTemplate({ name: args?.user?.name, token: args?.token ?? "" }).html,
     },
   },
+  // Privacy requests (CLAUDE.md §9): super-admin only, every use is audit-logged.
+  //   GET  /api/users/<id>/privacy-export  -> the user's data as a JSON download
+  //   POST /api/users/<id>/privacy-erase   -> erase/anonymize (body: { confirmEmail })
+  endpoints: [
+    {
+      path: "/:id/privacy-export",
+      method: "get",
+      handler: async (req) => {
+        if (!isSuperAdmin(req.user)) return Response.json({ error: "Forbidden" }, { status: 403 });
+        const id = String(req.routeParams?.id ?? "");
+        const data = await exportUserData({ payload: req.payload }, id, req.user!.id as string).catch(() => null);
+        if (!data) return Response.json({ error: "User not found" }, { status: 404 });
+        return new Response(JSON.stringify(data, null, 2), {
+          headers: { "Content-Type": "application/json", "Content-Disposition": `attachment; filename="digimall-data-${id}.json"`, "Cache-Control": "no-store" },
+        });
+      },
+    },
+    {
+      path: "/:id/privacy-erase",
+      method: "post",
+      handler: async (req) => {
+        if (!isSuperAdmin(req.user)) return Response.json({ error: "Forbidden" }, { status: 403 });
+        const id = String(req.routeParams?.id ?? "");
+        const body = (await req.json?.().catch(() => null)) as { confirmEmail?: string } | null;
+        const target = await req.payload.findByID({ collection: "users", id, depth: 0, overrideAccess: true }).catch(() => null);
+        if (!target) return Response.json({ error: "User not found" }, { status: 404 });
+        // Typing the email is the confirmation (erasing can't be undone)
+        if (!body?.confirmEmail || body.confirmEmail.trim().toLowerCase() !== target.email.toLowerCase()) {
+          return Response.json({ error: "Type the user's email exactly to confirm." }, { status: 400 });
+        }
+        try {
+          return Response.json(await eraseUser({ payload: req.payload }, id, req.user!.id as string));
+        } catch (error) {
+          return Response.json({ error: error instanceof PrivacyError ? error.message : "Couldn't erase this account." }, { status: 409 });
+        }
+      },
+    },
+  ],
   hooks: {
     // Rate limits for Payload's own REST endpoints (/api/users/login, /api/users/forgot-password),
     // which /admin/login uses. Without this a bot could skip our forms and hit the API directly.
@@ -106,6 +145,8 @@ export const Users: CollectionConfig = {
         if ((user as { role?: string })?.role === "super-admin" && !context?.adminEntry) {
           throw new AuthenticationError();
         }
+        // Erased accounts (privacy request) can never log in again
+        if ((user as { deletedAt?: string | null })?.deletedAt) throw new AuthenticationError();
         return user;
       },
     ],
@@ -252,6 +293,24 @@ export const Users: CollectionConfig = {
         { name: "failedAttempts", type: "number", defaultValue: 0, hidden: true },
         { name: "lockedUntil", type: "date", hidden: true },
       ],
+    },
+    {
+      // Privacy requests (super-admin only): download the user's data / erase the account
+      name: "privacyTools",
+      type: "ui",
+      admin: {
+        position: "sidebar",
+        condition: (data) => Boolean(data?.id),
+        components: { Field: "/components/admin/privacy-tools#PrivacyTools" },
+      },
+    },
+    {
+      // Set when the account was erased (privacy request). Server code only.
+      name: "deletedAt",
+      label: "Erased at (privacy request)",
+      type: "date",
+      access: { create: () => false, update: () => false },
+      admin: { position: "sidebar", readOnly: true, condition: (data) => Boolean(data?.deletedAt) },
     },
     {
       // When we last emailed a verification link (to slow down "resend" spam). Server code only.

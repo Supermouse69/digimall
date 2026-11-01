@@ -247,6 +247,17 @@ const main = async () => {
   check("rider: change own Active switch via API (only through the portal's checks)", await fieldAcc("rider-profiles", "isActive", "update", rider), false);
   check("rider: write own location via API", await fieldAcc("rider-profiles", "lastLocation", "update", rider), false);
 
+  console.log("--- Privacy requests ---");
+  check("nobody can set 'erased at' by hand (not even the admin)", await fieldAcc("users", "deletedAt", "update", admin), false);
+  const endpoints = (col("users") as unknown as { endpoints?: { path: string; method: string; handler: (req: unknown) => Promise<Response> }[] }).endpoints ?? [];
+  const privacyExport = endpoints.find((e) => e.path === "/:id/privacy-export");
+  const privacyErase = endpoints.find((e) => e.path === "/:id/privacy-erase");
+  check("privacy export + erase endpoints exist", Boolean(privacyExport && privacyErase), true);
+  for (const [who, user] of [["anonymous", anon], ["buyer", attacker], ["seller", seller], ["rider", rider]] as const) {
+    check(`${who}: privacy export refused`, (await privacyExport!.handler({ user, routeParams: { id: "x" }, payload: fakePayload } as never)).status === 403, true);
+    check(`${who}: privacy erase refused`, (await privacyErase!.handler({ user, routeParams: { id: "x" }, payload: fakePayload } as never)).status === 403, true);
+  }
+
   console.log("--- Audit log (append-only) ---");
   check("seller: read audit log", await acc("audit-logs", "read", seller), false);
   check("admin: read audit log", await acc("audit-logs", "read", admin), true);

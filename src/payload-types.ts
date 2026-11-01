@@ -209,6 +209,7 @@ export interface User {
     failedAttempts?: number | null;
     lockedUntil?: string | null;
   };
+  deletedAt?: string | null;
   verificationSentAt?: string | null;
   ageConfirmedAt?: string | null;
   updatedAt: string;
@@ -755,7 +756,9 @@ export interface AuditLog {
     | 'chat.viewed'
     | 'refund.escalated'
     | 'order.auto_refunded'
-    | 'order.self_pickup';
+    | 'order.self_pickup'
+    | 'privacy.exported'
+    | 'privacy.erased';
   actor?: (string | null) | User;
   targetCollection?: string | null;
   targetId?: string | null;
@@ -948,6 +951,7 @@ export interface UsersSelect<T extends boolean = true> {
         failedAttempts?: T;
         lockedUntil?: T;
       };
+  deletedAt?: T;
   verificationSentAt?: T;
   ageConfirmedAt?: T;
   updatedAt?: T;

@@ -1,0 +1,25 @@
+Title: CHECK PHASE 9 LOCALLY (before deploying)
+Date: 2026-11-01
+Status: not checked yet by the developer
+Branch: phase-9-deploy
+
+ [ ] 1. Restart `bun run dev` (new packages: storage-vercel-blob, storage-s3, email-resend).
+        Locally nothing changes: files still go to ./media and ./private-media, emails still print
+        in the terminal (the new storage/email only turn on with their keys).
+ [ ] 2. Upload a product photo and a chat photo: still work (max 4 MB now; a 4–5 MB photo is refused
+        with "over 4 MB")
+ [ ] 3. PRIVACY TOOL (super-admin, admin panel -> Users -> a TEST buyer):
+        - right side: "Privacy requests" -> "Download this user's data (JSON)" downloads a file with
+          their account, orders, messages, files (no password hash, no tokens)
+        - "Erase this account…" -> the button stays grey until you type their email exactly
+        - Erase -> "Erased. Chats deleted ..., files deleted ..., orders anonymized ..."
+        - reload: the user is "Deleted user" with a deleted-…@deleted.invalid email; they can't log in
+        - their old orders still exist, with "Deleted user" and no address
+        - Audit Logs: "privacy.exported" and "privacy.erased"
+        - try erasing a buyer with an order in progress -> refused with the order codes
+        - sellers and the super-admin can't be erased here
+ [ ] 4. `bun run db:backup` -> creates backups/digimall-dev-<date>.json (keep it private)
+ [ ] 5. Browser console (F12) on home, a store, checkout, /rider and /admin: no red
+        "Content Security Policy" errors (the new security headers). Maps, the robot check and
+        images must still load. If something is blocked, copy the red line to Claude.
+ [ ] 6. Then follow "deploy step by step.txt".

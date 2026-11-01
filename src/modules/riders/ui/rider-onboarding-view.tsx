@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { RiderDashboard } from "./rider-dashboard";
 import { useLogout } from "@/modules/auth/hooks/use-logout";
 
-const MAX_BYTES = 5 * 1024 * 1024;
+const MAX_BYTES = 4 * 1024 * 1024;
 
 type DocumentField = "photo" | "licenseDocument" | "franchiseDocument";
 type Purpose = "rider-photo" | "rider-license" | "rider-franchise";
@@ -61,7 +61,7 @@ const DocumentCard = ({
       return;
     }
     if (file.size > MAX_BYTES) {
-      toast.error("That photo is over 5 MB. Please take a smaller one.");
+      toast.error("That photo is over 4 MB. Please take a smaller one.");
       return;
     }
     setBusy(true);

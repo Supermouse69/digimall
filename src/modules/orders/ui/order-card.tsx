@@ -12,7 +12,7 @@ import { cn, formatCurrency } from "@/lib/utils";
 
 import type { RefundAction, StoreOrderAction } from "../state";
 
-const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
+const MAX_PHOTO_BYTES = 4 * 1024 * 1024;
 const whenVisible = (ms: number) => () => (typeof document !== "undefined" && document.visibilityState === "visible" ? ms : false);
 
 // Receipts, refund QRs and refund proofs go to PRIVATE storage; only this buyer, this store
@@ -99,7 +99,7 @@ export const OrderCard = ({ storeOrderId, compact }: { storeOrderId: string; com
   const onReceipt = async (file: File | undefined) => {
     if (!file) return;
     if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) return toast.error("Please use a JPG, PNG, or WebP screenshot.");
-    if (file.size > MAX_PHOTO_BYTES) return toast.error("That picture is over 5 MB.");
+    if (file.size > MAX_PHOTO_BYTES) return toast.error("That picture is over 4 MB.");
     setBusy(true);
     try {
       run("submit_payment", { receiptId: await uploadPrivate(file, "payment-receipt"), referenceNo: reference.trim() || undefined });
@@ -116,7 +116,7 @@ export const OrderCard = ({ storeOrderId, compact }: { storeOrderId: string; com
   const onRefundFile = async (file: File | undefined) => {
     if (!file) return;
     if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) return toast.error("Please use a JPG, PNG, or WebP picture.");
-    if (file.size > MAX_PHOTO_BYTES) return toast.error("That picture is over 5 MB.");
+    if (file.size > MAX_PHOTO_BYTES) return toast.error("That picture is over 4 MB.");
     const action: RefundAction = canRefund("buyer_send_qr") ? "buyer_send_qr" : "store_refund_sent";
     setBusy(true);
     try {
