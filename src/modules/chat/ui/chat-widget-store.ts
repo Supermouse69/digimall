@@ -1,7 +1,8 @@
 import { create } from "zustand";
 
 // Opens the floating chat (chat head) from anywhere, e.g. "Chat with store" on a product page
-export type ChatTarget = { storeSlug: string; productId?: string } | null;
+// A store (from a store/product page) or a specific chat, e.g. the trip chat with the rider
+export type ChatTarget = { storeSlug: string; productId?: string } | { conversationId: string } | null;
 
 interface ChatWidgetState {
   isOpen: boolean;

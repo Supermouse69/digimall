@@ -7,6 +7,8 @@ import { toast } from "sonner";
 
 import { useTRPC } from "@/trpc/client";
 import { Button } from "@/components/ui/button";
+
+import { RiderDashboard } from "./rider-dashboard";
 import { useLogout } from "@/modules/auth/hooks/use-logout";
 
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -22,7 +24,7 @@ const DOCUMENTS: { field: DocumentField; purpose: Purpose; title: string; hint: 
 
 const STATUS_TEXT = {
   pending: { label: "Waiting for approval", tone: "bg-amber-50 border-amber-500", note: "Upload all 3 below. The admin checks them before you can take rides." },
-  approved: { label: "Approved", tone: "bg-green-50 border-green-600", note: "You're approved! Ride requests come in Phase 6 of the app." },
+  approved: { label: "Approved", tone: "bg-green-50 border-green-600", note: "You're approved. Go Active to get ride requests." },
   suspended: { label: "Suspended", tone: "bg-red-50 border-red-600", note: "Your account is on hold. Please contact the DigiMall admin." },
 } as const;
 
@@ -124,12 +126,20 @@ export const RiderOnboardingView = () => {
           <p className="font-medium">{status.label}</p>
           <p className="text-sm">{status.note}</p>
         </div>
-        {profile.status !== "suspended" &&
-          DOCUMENTS.map((doc) => <DocumentCard key={doc.field} doc={doc} currentUrl={profile[doc.urlKey]} />)}
-        {profile.status === "approved" && (
-          <p className="text-sm text-neutral-600">
-            If you replace your license or MTOP, the admin will check it again before you can ride.
-          </p>
+        {profile.status === "approved" && <RiderDashboard />}
+        {profile.status === "approved" ? (
+          <details className="rounded-md border bg-white p-3">
+            <summary className="cursor-pointer font-medium">My documents</summary>
+            <div className="flex flex-col gap-3 mt-3">
+              {DOCUMENTS.map((doc) => <DocumentCard key={doc.field} doc={doc} currentUrl={profile[doc.urlKey]} />)}
+              <p className="text-sm text-neutral-600">
+                If you replace your license or MTOP, the admin will check it again before you can ride.
+              </p>
+            </div>
+          </details>
+        ) : (
+          profile.status !== "suspended" &&
+          DOCUMENTS.map((doc) => <DocumentCard key={doc.field} doc={doc} currentUrl={profile[doc.urlKey]} />)
         )}
       </div>
     </main>

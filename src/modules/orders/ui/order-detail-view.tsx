@@ -13,6 +13,9 @@ import { formatCurrency } from "@/lib/utils";
 import { useChatWidget } from "@/modules/chat/ui/chat-widget-store";
 
 import { ORDER_LABELS } from "../state";
+import { PushToggle } from "@/modules/notifications/ui/push-toggle";
+
+import { BookRider } from "./book-rider";
 import { ModeBadge, OrderCard } from "./order-card";
 
 const whenVisible = (ms: number) => () => (typeof document !== "undefined" && document.visibilityState === "visible" ? ms : false);
@@ -53,14 +56,10 @@ export const OrderDetailView = ({ code }: { code: string }) => {
       </div>
       <p className="text-lg font-medium">{ORDER_LABELS[order.status]}</p>
 
-      {order.status === "ready_to_book" && (
-        <div className="rounded-md border-2 border-green-600 bg-green-50 p-4">
-          <p className="font-medium">🟢 Every store is paid. You can book a rider now.</p>
-          <Button disabled className="mt-2" title="Rider booking comes in the next update (Phase 6)">
-            Book rider (coming soon)
-          </Button>
-        </div>
+      {["ready_to_book", "rider_requested", "rider_assigned", "on_the_way", "delivered"].includes(order.status) && (
+        <BookRider code={order.code} status={order.status} deliveryPoint={order.delivery.location} />
       )}
+      <PushToggle className="w-fit" />
 
       {order.storeOrders.map((storeOrder) => (
         <div key={storeOrder.id} className="flex flex-col gap-2">

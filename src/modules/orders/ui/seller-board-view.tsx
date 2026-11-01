@@ -8,6 +8,8 @@ import { useTRPC } from "@/trpc/client";
 import { Button } from "@/components/ui/button";
 import { cn, formatCurrency } from "@/lib/utils";
 
+import { PushToggle } from "@/modules/notifications/ui/push-toggle";
+
 import { ModeBadge, OrderCard } from "./order-card";
 
 const whenVisible = (ms: number) => () => (typeof document !== "undefined" && document.visibilityState === "visible" ? ms : false);
@@ -34,6 +36,7 @@ export const SellerBoardView = ({ embedded }: { embedded: boolean }) => {
           </Button>
         )}
       </div>
+      <PushToggle className="w-fit" />
       <div className="flex gap-2">
         {(["active", "done"] as const).map((value) => (
           <Button key={value} size="sm" variant={filter === value ? "default" : "outline"} onClick={() => setFilter(value)}>

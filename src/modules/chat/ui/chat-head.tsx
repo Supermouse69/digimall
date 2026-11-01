@@ -35,7 +35,11 @@ export const ChatHead = () => {
     <>
       {isOpen && (
         <div className="fixed z-50 inset-0 sm:inset-auto sm:bottom-24 sm:right-4 sm:w-[380px] sm:h-[560px] sm:rounded-lg sm:border sm:shadow-xl overflow-hidden bg-white">
-          <ChatPanel key={target ? `${target.storeSlug}:${target.productId ?? ""}` : "list"} target={target} onClose={close} />
+          <ChatPanel
+            key={!target ? "list" : "conversationId" in target ? target.conversationId : `${target.storeSlug}:${target.productId ?? ""}`}
+            target={target}
+            onClose={close}
+          />
         </div>
       )}
       <button

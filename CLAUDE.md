@@ -126,6 +126,9 @@ src/
   modules/chat/       store chat: chat-service (all membership checks), procedures, chat head + panel UI
   modules/orders/     state.ts (state machine), order-service (checkout + store order lifecycle), order card / board / my orders UI
   modules/checkout/   browser cart (per store, with quantities) + cart and checkout screens
+  modules/trips/      rider booking + trips: trip-service (who sees what before/during/after), procedures
+  modules/notifications/ web push (VAPID): push.ts is the ONE place that sends notifications; push toggle UI
+  modules/riders/     rider portal (documents until approved, then Active / requests / trip / history)
   components/admin/   custom Payload admin components (seller chat head)
   modules/tenants/    store pages: public store data (allowlist), badge, header, stores by barangay
   trpc/               tRPC setup (init, client, server caller, root router)
@@ -133,18 +136,19 @@ src/
   payload-types.ts    generated — run `bun run generate:types`, don't edit by hand
   seed.ts             dev seed script (writes to the DB — ask first)
 scripts/              checks: `bun run test:access | test:redirects | test:signup | test:emails | test:2fa | test:bot-protection | test:order-rules`
-                      DB checks (real dev DB, inside cancelled transactions): `test:invites | test:rider-docs | test:admin-login | test:stores | test:chat | test:orders`
+                      DB checks (real dev DB, inside cancelled transactions): `test:invites | test:rider-docs | test:admin-login | test:stores | test:chat | test:orders | test:trips`
                       `test:order-rules` checks the order state machine (no DB)
                       `chat:cleanup` deletes expired chats (same as the daily /api/cron/chat-cleanup; writes to the DB)
                       `admin:reset-2fa <email> [--new-password]` emergency 2FA reset (writes to the DB)
                       `seed:mock` adds/removes [MOCK] products (writes to the DB)
                       `notes:map` refreshes the Obsidian Code Map notes (§17; writes only to the notes folder)
-public/               static files
+public/               static files (sw.js = service worker for push; rider.webmanifest = installable rider app; icons/)
 suggestions/          critical suggestions for the developer (§4)
 suggestions/tobedone/ things the developer still has to test or do (checklists)
 suggestions/check_phase3/ Phase 3 check list for the developer
 suggestions/check_phase4/ Phase 4 (chat) check list for the developer
 suggestions/check_phase5/ Phase 5 (cart + checkout) check list for the developer
+suggestions/check_phase6/ Phase 6 (riders + trips + push) check list for the developer
 media/                local public uploads, gitignored (moves to Vercel Blob later)
 private-media/        local PRIVATE uploads (IDs, licenses, landmark photos), gitignored (Vercel Private Blob later)
 backups/              local DB backups made before migrations, gitignored (contain personal data)
@@ -166,7 +170,7 @@ Path aliases: `@/*` → `src/*`, `@payload-config` → `src/payload.config.ts`. 
 | Google Cloud OAuth | "Sign in with Google" for buyers | Need | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` |
 | Cloudflare Turnstile | Bot protection on auth forms | In code (dev uses Cloudflare test keys); **real keys needed before deploy** (free) | `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` |
 | Rate-limit counters | Rate limiting on serverless | **Decided 2026-10-31: MongoDB** (`rate_limits` collection, auto-expiring, hashed keys) in `modules/bot-protection`. Upstash Redis stays the upgrade path. | — (Upstash later: `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`) |
-| Web Push (VAPID) | Push notifications | Generate keys locally | `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` |
+| Web Push (VAPID) | Push notifications | **Added 2026-11-01** (dev keys in `.env`; generate a NEW pair for production) | `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` |
 | OpenStreetMap tiles | Maps | No account needed | — |
 | Cron protection | Secures scheduled endpoints | **Added 2026-10-31** (`/api/cron/chat-cleanup`; schedule it in Vercel Cron at deploy) | `CRON_SECRET` |
 | Admin entry | Hidden super-admin login path | — | `ADMIN_ENTRY_PATH` |

@@ -5,8 +5,10 @@ import { RiderOnboardingView } from "@/modules/riders/ui/rider-onboarding-view";
 import { caller, getQueryClient, trpc } from "@/trpc/server";
 
 export const dynamic = "force-dynamic";
+// Installable rider app (CLAUDE.md §7: "Add to Home Screen" on Android/iPhone)
+export const metadata = { title: "DigiMall Rider", manifest: "/rider.webmanifest", appleWebApp: { capable: true, title: "DM Rider" } };
 
-// Rider portal (mobile-first). Phase 2d: profile + documents. Phase 6 adds Active, requests, trips.
+// Rider portal (mobile-first): documents (until approved), then Active, requests, trips, history.
 // Riders only, checked on the server.
 const Page = async () => {
   const session = await caller.auth.session();

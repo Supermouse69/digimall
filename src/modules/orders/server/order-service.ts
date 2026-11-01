@@ -627,7 +627,12 @@ export const buyerOrderDetail = async (ctx: ChatCtx, actor: ChatActor, code: str
     status: current.status as OrderStatus,
     mode: order.mode as DeliveryMode,
     createdAt: order.createdAt,
-    delivery: { barangay: order.delivery?.barangay ?? null, addressDetails: order.delivery?.addressDetails ?? null },
+    // The buyer's own delivery pin (for their trip map)
+    delivery: {
+      barangay: order.delivery?.barangay ?? null,
+      addressDetails: order.delivery?.addressDetails ?? null,
+      location: fromPoint(order.delivery?.location as [number, number] | null | undefined),
+    },
     riderNotes: order.riderNotes ?? null,
     fareEstimate: order.fare?.estimate ?? null,
     itemsTotal: views.filter((view) => !["cancelled", "expired"].includes(view.status)).reduce((sum, view) => sum + view.subtotal, 0),

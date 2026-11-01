@@ -50,7 +50,11 @@ interface Props {
 
 export const ChatPanel = ({ target, onClose, className }: Props) => {
   const [view, setView] = useState<View>(() =>
-    target ? { name: "thread", conversationId: null, storeSlug: target.storeSlug, productId: target.productId } : { name: "list" },
+    !target
+      ? { name: "list" }
+      : "conversationId" in target
+        ? { name: "thread", conversationId: target.conversationId }
+        : { name: "thread", conversationId: null, storeSlug: target.storeSlug, productId: target.productId },
   );
 
   return (
